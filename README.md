@@ -15,13 +15,23 @@ Browser-only planning poker app with no backend.
 
 ## Quick Start
 
-Serve the project over HTTP (ES modules do not run from `file://`):
+Install dependencies, then run the Vite dev server (ES modules do not run from `file://`):
 
 ```bash
-python3 -m http.server 8000
+npm install
+npm run dev
 ```
 
-Open `http://127.0.0.1:8000` in a modern browser.
+Open the URL shown in the terminal (local dev serves from `/`).
+
+For a production-like preview of the GitHub Pages bundle:
+
+```bash
+npm run build
+npm run preview
+```
+
+Open `http://127.0.0.1:4173/planning-poker/`.
 
 ## How To Connect
 
@@ -85,7 +95,13 @@ npm install
 npx playwright install
 ```
 
-Run E2E tests:
+Run unit tests:
+
+```bash
+npm run test:unit
+```
+
+Run E2E tests (builds the app and serves it with `vite preview`, matching GitHub Pages):
 
 ```bash
 npm run test:e2e
@@ -101,7 +117,20 @@ npm run test:e2e:debug
 npm run test:e2e:report
 ```
 
-Playwright starts a local static server automatically via `playwright.config.js`.
+Lint and format:
+
+```bash
+npm run lint
+npm run format
+```
+
+Typecheck messaging contracts (JSDoc + `checkJs`):
+
+```bash
+npm run typecheck
+```
+
+Playwright starts the production preview server automatically via `playwright.config.js`.
 
 ## Debug Logging
 
