@@ -35,6 +35,7 @@ const GUEST_MQTT_HEALTH_CHECK_MS = 12_000;
 let guestRejoinTimer = null;
 let guestDisconnectedRecoveryTimer = null;
 let guestMqttHealthTimer = null;
+let guestMqttRecoveryInFlight = false;
 let guestRejoinAttempts = 0;
 let guestAwaitingRejoinAck = false;
 let guestPresenceTimer = null;
@@ -474,6 +475,7 @@ export function onHostChannelOpen(channel) {
 
 export function onHostChannelClose(channel) {
     if (state.guestChannel !== channel) return;
+    guestMqttRecoveryInFlight = false;
     guestAwaitingRejoinAck = false;
     stopGuestPresenceLoop();
     stopGuestMqttHealthLoop();
@@ -545,6 +547,16 @@ export function triggerGuestAutoRejoin(reason = "manual") {
     scheduleGuestAutoRejoin(reason, true);
 }
 
+export function runGuestMqttHealthCheckForTest() {
+    checkGuestMqttLinkHealth();
+    return {
+        phase: state.guestConnectionPhase,
+        channelReadyState: state.guestChannel ? state.guestChannel.readyState : "none",
+        canRejoin: canAttemptGuestAutoRejoin(),
+        mqttConnectCount: Number(window.__PP_MQTT_CONNECT_COUNT || 0)
+    };
+}
+
 function startGuestRelayFallback() {
     const roomId = state.roomId;
     if (!roomId) {
@@ -606,6 +618,7 @@ function settleGuestRejoinState() {
     clearGuestJoinRetryTimer();
     clearGuestDisconnectedRecoveryTimer();
     stopGuestMqttHealthLoop();
+    guestMqttRecoveryInFlight = false;
     guestRejoinAttempts = 0;
     guestJoinRetryAttempts = 0;
     guestAwaitingRejoinAck = false;
@@ -635,26 +648,27 @@ function syncGuestMqttReadyState(channel) {
 function forceGuestMqttRecovery(reason) {
     const channel = state.guestChannel;
     if (!isGuestMqttChannel(channel)) return;
+    if (guestMqttRecoveryInFlight) return;
+    guestMqttRecoveryInFlight = true;
     log.warn("guest", "MQTT guest link stale; forcing recovery", { reason });
     setGuestConnectionPhase("unstable");
     updateConnectionStatus(false, "Connection unstable — recovering...");
     try {
         channel.close();
     } catch (_error) {
-        // Ignore close errors.
-    }
-    if (!state.guestChannel && canAttemptGuestAutoRejoin()) {
-        scheduleGuestAutoRejoin(reason);
+        guestMqttRecoveryInFlight = false;
+        return;
     }
 }
 
 function checkGuestMqttLinkHealth() {
     const channel = state.guestChannel;
     if (!isGuestMqttChannel(channel)) return;
+    if (typeof channel.isInboundStale === "function" && channel.isInboundStale()) {
+        forceGuestMqttRecovery("mqtt-inbound-stale");
+        return;
+    }
     syncGuestMqttReadyState(channel);
-    if (channel.readyState !== "open") return;
-    if (typeof channel.isInboundStale !== "function" || !channel.isInboundStale()) return;
-    forceGuestMqttRecovery("mqtt-inbound-stale");
 }
 
 function startGuestMqttHealthLoop() {

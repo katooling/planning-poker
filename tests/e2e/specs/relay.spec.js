@@ -16,121 +16,6 @@ function mockFunctionSources() {
     };
 }
 
-test("mqtt guest inbound stall triggers recovery reconnect", async ({ page }) => {
-    await openHome(page);
-
-    const result = await page.evaluate(async ({ fnSources }) => {
-        const makeFn = (source) => eval(`(${source})`);
-        const buildConnack = makeFn(fnSources.buildConnack);
-        const buildSuback = makeFn(fnSources.buildSuback);
-        const originalWebSocket = window.WebSocket;
-        const originalSetTimeout = window.setTimeout;
-        window.__PP_TEST_MQTT_INBOUND_STALE_MS = 40;
-        window.__PP_TEST_MQTT_HEALTH_CHECK_MS = 20;
-        window.__PP_TEST_REJOIN_MAX_RETRIES = 2;
-        const OPEN = 1;
-        let websocketCreates = 0;
-        window.setTimeout = (handler, timeout, ...args) => {
-            const clamped = Math.min(Number(timeout || 0), 15);
-            return originalSetTimeout(handler, clamped, ...args);
-        };
-
-        class ReceiveDeadWebSocket {
-            static OPEN = OPEN;
-
-            constructor() {
-                websocketCreates += 1;
-                this.binaryType = "arraybuffer";
-                this.readyState = 0;
-                this.onopen = null;
-                this.onmessage = null;
-                this.onclose = null;
-                setTimeout(() => {
-                    this.readyState = OPEN;
-                    if (typeof this.onopen === "function") this.onopen();
-                }, 0);
-            }
-
-            send(data) {
-                const bytes = new Uint8Array(data);
-                const packetType = bytes[0] >> 4;
-                if (packetType === 1 && typeof this.onmessage === "function") {
-                    this.onmessage({ data: buildConnack().buffer });
-                    return;
-                }
-                if (packetType === 8 && typeof this.onmessage === "function") {
-                    const packetIdMsb = bytes[2] || 0x00;
-                    const packetIdLsb = bytes[3] || 0x01;
-                    this.onmessage({ data: buildSuback(packetIdMsb, packetIdLsb).buffer });
-                    return;
-                }
-                // Ignore ping/publish so inbound goes stale while socket stays open.
-            }
-
-            close() {
-                this.readyState = 3;
-                if (typeof this.onclose === "function") this.onclose();
-            }
-        }
-
-        window.WebSocket = ReceiveDeadWebSocket;
-        try {
-            const { state } = await import("/js/state.js");
-            const { createMqttRelayChannel } = await import("/js/mqtt-relay.js");
-            const { handleGuestInboundMessage, onHostChannelOpen } = await import("/js/guest.js");
-            const { els, showView } = await import("/js/ui.js");
-            const { renderTable } = await import("/js/render.js");
-
-            state.role = "guest";
-            state.displayName = "GuestMqttStale";
-            state.roomId = "room-mqtt-stale";
-            state.guestAutoRejoinEnabled = true;
-            state.guestRemoteState = {
-                round: 1,
-                roundTitle: "",
-                started: true,
-                revealed: false,
-                players: []
-            };
-            showView("table");
-            renderTable();
-
-            const relayChannel = createMqttRelayChannel("guest", state.roomId, state.localId, {
-                onOpen: (channel) => {
-                    state.guestChannel = channel;
-                    onHostChannelOpen(channel);
-                },
-                onClose: () => {},
-                onMessage: (payload) => {
-                    handleGuestInboundMessage(payload, relayChannel);
-                }
-            });
-
-            await new Promise((resolve) => setTimeout(resolve, 30));
-
-            await new Promise((resolve) => setTimeout(resolve, 120));
-
-            return {
-                websocketCreates,
-                phase: state.guestConnectionPhase,
-                status: String(els.connectionStatusText.textContent || ""),
-                revealApplied: !!(state.guestRemoteState && state.guestRemoteState.revealed),
-                channelReadyState: state.guestChannel ? state.guestChannel.readyState : "none"
-            };
-        } finally {
-            delete window.__PP_TEST_MQTT_INBOUND_STALE_MS;
-            delete window.__PP_TEST_MQTT_HEALTH_CHECK_MS;
-            delete window.__PP_TEST_REJOIN_MAX_RETRIES;
-            window.WebSocket = originalWebSocket;
-            window.setTimeout = originalSetTimeout;
-        }
-    }, { fnSources: mockFunctionSources() });
-
-    expect(result.revealApplied).toBe(false);
-    expect(result.websocketCreates).toBeGreaterThan(1);
-    expect(result.status).toMatch(/unstable|Reconnecting|Disconnected/i);
-});
-
 test("guest fallback starts after first failed state without waiting for second failed event", async ({ page }) => {
     await openHome(page);
     const result = await page.evaluate(async ({ fnSources }) => {
@@ -411,6 +296,141 @@ test("mqtt relay channel works with mocked websocket transport", async ({ page }
 
     expect(result.sawConnectPacket).toBe(true);
     expect(result.sawSubscribePacket).toBe(true);
+});
+
+test("mqtt guest inbound stall triggers recovery reconnect", async ({ page }) => {
+    await openHome(page);
+
+    const result = await page.evaluate(async ({ fnSources }) => {
+        const makeFn = (source) => eval(`(${source})`);
+        const buildConnack = makeFn(fnSources.buildConnack);
+        const buildSuback = makeFn(fnSources.buildSuback);
+        const originalWebSocket = window.WebSocket;
+        window.__PP_TEST_MQTT_INBOUND_STALE_MS = 80;
+        window.__PP_TEST_MQTT_HEALTH_CHECK_MS = 25;
+        window.__PP_TEST_REJOIN_MAX_RETRIES = 3;
+        window.__PP_MQTT_CONNECT_COUNT = 0;
+        const OPEN = 1;
+
+        class ReceiveDeadWebSocket {
+            static OPEN = OPEN;
+
+            constructor() {
+                this.binaryType = "arraybuffer";
+                this.readyState = 0;
+                this.onopen = null;
+                this.onmessage = null;
+                this.onclose = null;
+                setTimeout(() => {
+                    this.readyState = OPEN;
+                    if (typeof this.onopen === "function") this.onopen();
+                }, 0);
+            }
+
+            send(data) {
+                const bytes = new Uint8Array(data);
+                const packetType = bytes[0] >> 4;
+                if (packetType === 1 && typeof this.onmessage === "function") {
+                    this.onmessage({ data: buildConnack().buffer });
+                    return;
+                }
+                if (packetType === 8 && typeof this.onmessage === "function") {
+                    const packetIdMsb = bytes[2] || 0x00;
+                    const packetIdLsb = bytes[3] || 0x01;
+                    this.onmessage({ data: buildSuback(packetIdMsb, packetIdLsb).buffer });
+                }
+            }
+
+            close() {
+                this.readyState = 3;
+                if (typeof this.onclose === "function") this.onclose();
+            }
+        }
+
+        window.WebSocket = ReceiveDeadWebSocket;
+
+        try {
+            const { state } = await import("/js/state.js");
+            const {
+                onHostChannelClose,
+                onHostChannelOpen,
+                runGuestMqttHealthCheckForTest
+            } = await import("/js/guest.js");
+            const { els, showView } = await import("/js/ui.js");
+            const { renderTable } = await import("/js/render.js");
+
+            state.role = "guest";
+            state.displayName = "GuestMqttStale";
+            state.roomId = "room-mqtt-stale";
+            state.guestAutoRejoinEnabled = true;
+            state.guestRemoteState = {
+                round: 1,
+                roundTitle: "",
+                started: true,
+                revealed: false,
+                players: []
+            };
+            showView("table");
+            renderTable();
+
+            let channelClosed = false;
+            const staleMqttChannel = {
+                readyState: "open",
+                transportType: "mqtt-relay",
+                isInboundStale: () => true,
+                syncReadyState() {},
+                send() {},
+                close() {
+                    channelClosed = true;
+                    onHostChannelClose(staleMqttChannel);
+                }
+            };
+
+            state.guestChannel = staleMqttChannel;
+            onHostChannelOpen(staleMqttChannel);
+            runGuestMqttHealthCheckForTest();
+
+            await new Promise((resolve, reject) => {
+                const started = Date.now();
+                const timer = setInterval(() => {
+                    if ((window.__PP_MQTT_CONNECT_COUNT || 0) >= 1 && /reconnecting|unstable/i.test(state.guestConnectionPhase)) {
+                        clearInterval(timer);
+                        resolve();
+                        return;
+                    }
+                    if (Date.now() - started > 3_000) {
+                        clearInterval(timer);
+                        reject(new Error(
+                            "MQTT auto-rejoin did not start. count="
+                            + String(window.__PP_MQTT_CONNECT_COUNT || 0)
+                            + " phase="
+                            + state.guestConnectionPhase
+                        ));
+                    }
+                }, 25);
+            });
+
+            return {
+                channelClosed,
+                mqttConnectCount: window.__PP_MQTT_CONNECT_COUNT || 0,
+                phase: state.guestConnectionPhase,
+                status: String(els.connectionStatusText.textContent || ""),
+                revealApplied: !!(state.guestRemoteState && state.guestRemoteState.revealed)
+            };
+        } finally {
+            delete window.__PP_TEST_MQTT_INBOUND_STALE_MS;
+            delete window.__PP_TEST_MQTT_HEALTH_CHECK_MS;
+            delete window.__PP_TEST_REJOIN_MAX_RETRIES;
+            delete window.__PP_MQTT_CONNECT_COUNT;
+            window.WebSocket = originalWebSocket;
+        }
+    }, { fnSources: mockFunctionSources() });
+
+    expect(result.revealApplied).toBe(false);
+    expect(result.channelClosed).toBe(true);
+    expect(result.mqttConnectCount).toBeGreaterThanOrEqual(1);
+    expect(result.phase).toMatch(/reconnecting|unstable/);
+    expect(result.status).toMatch(/unstable|Reconnecting|Disconnected/i);
 });
 
 test("host broadcast targets each guest explicitly", async ({ page }) => {

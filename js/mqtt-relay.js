@@ -15,6 +15,14 @@ function getMqttInboundStaleMs() {
     return MQTT_INBOUND_STALE_MS;
 }
 
+function getMqttConnectTimeoutMs() {
+    const testMs = Number(window.__PP_TEST_MQTT_CONNECT_TIMEOUT_MS);
+    if (Number.isFinite(testMs) && testMs > 0) {
+        return Math.floor(testMs);
+    }
+    return CONNECT_TIMEOUT_MS;
+}
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
@@ -139,6 +147,9 @@ class SimpleMqttClient {
 
     connect() {
         if (this.ws) return;
+        if (typeof window !== "undefined") {
+            window.__PP_MQTT_CONNECT_COUNT = (window.__PP_MQTT_CONNECT_COUNT || 0) + 1;
+        }
         log.info("mqtt", "MQTT relay connect attempt", {
             clientId: this.clientId,
             subscribeTopic: this.subscribeTopic
@@ -280,7 +291,7 @@ class SimpleMqttClient {
             });
             this.notifyFailure("timeout", { timeoutMs: CONNECT_TIMEOUT_MS });
             this.close();
-        }, CONNECT_TIMEOUT_MS);
+        }, getMqttConnectTimeoutMs());
     }
 
     clearConnectTimer() {
@@ -351,8 +362,7 @@ export function createMqttRelayChannel(role, roomId, localId, callbacks = {}) {
             return mqttClient.isInboundStale();
         },
         send(data) {
-            if (mqttClient.isInboundStale() || !mqttClient.syncSocketState()) {
-                channel.readyState = "closed";
+            if (!mqttClient.syncSocketState() || mqttClient.isInboundStale()) {
                 throw new Error("MQTT relay is not open.");
             }
             const payload = String(data || "");
