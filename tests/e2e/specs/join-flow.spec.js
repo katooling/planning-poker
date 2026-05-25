@@ -213,7 +213,7 @@ test("mqtt quick join enforces room pin", async ({ browser }) => {
     await guest.locator("#connectGuestRoomBtn").click();
     await expect(host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestPin" })).toHaveCount(0, { timeout: 6_000 });
     await expect(guest.locator("#guestConnectNotice")).toContainText(
-        /Invalid room PIN|Could not connect to room/,
+        /Invalid room PIN|Wrong PIN|Could not connect to room/,
         { timeout: 10_000 }
     );
 

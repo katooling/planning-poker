@@ -68,6 +68,14 @@ function getGuestMqttHealthCheckMs() {
     return GUEST_MQTT_HEALTH_CHECK_MS;
 }
 
+function getPresencePingIntervalMs() {
+    const testMs = Number(window.__PP_TEST_PRESENCE_PING_INTERVAL_MS);
+    if (Number.isFinite(testMs) && testMs > 0) {
+        return Math.floor(testMs);
+    }
+    return PRESENCE_PING_INTERVAL_MS;
+}
+
 function setGuestConnectionPhase(phase) {
     state.guestConnectionPhase = phase;
 }
@@ -557,6 +565,35 @@ export function runGuestMqttHealthCheckForTest() {
     };
 }
 
+export function ageGuestMqttInboundForTest(ageMs) {
+    const channel = state.guestChannel;
+    if (!channel || typeof channel.__testAgeInbound !== "function") return false;
+    channel.__testAgeInbound(ageMs);
+    return true;
+}
+
+export function getGuestSessionDiagnosticsForTest() {
+    return {
+        phase: state.guestConnectionPhase,
+        remoteState: state.guestRemoteState
+            ? {
+                round: state.guestRemoteState.round,
+                revealed: state.guestRemoteState.revealed,
+                started: state.guestRemoteState.started,
+                playerCount: Array.isArray(state.guestRemoteState.players)
+                    ? state.guestRemoteState.players.length
+                    : 0
+            }
+            : null,
+        selectedVote: state.selectedVote,
+        connectionText: String(
+            document.getElementById("connectionStatusText")
+                ? document.getElementById("connectionStatusText").textContent
+                : ""
+        )
+    };
+}
+
 function startGuestRelayFallback() {
     const roomId = state.roomId;
     if (!roomId) {
@@ -706,7 +743,7 @@ function startGuestPresenceLoop() {
             return;
         }
         sendPresencePing("beat");
-    }, PRESENCE_PING_INTERVAL_MS);
+    }, getPresencePingIntervalMs());
 }
 
 function getGuestRejoinDelayMs() {

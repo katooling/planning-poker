@@ -361,6 +361,11 @@ export function createMqttRelayChannel(role, roomId, localId, callbacks = {}) {
         isInboundStale() {
             return mqttClient.isInboundStale();
         },
+        __testAgeInbound(ageMs) {
+            const age = Number(ageMs);
+            if (!Number.isFinite(age) || age <= 0) return;
+            mqttClient.lastInboundAt = Date.now() - Math.floor(age);
+        },
         send(data) {
             if (!mqttClient.syncSocketState() || mqttClient.isInboundStale()) {
                 throw new Error("MQTT relay is not open.");

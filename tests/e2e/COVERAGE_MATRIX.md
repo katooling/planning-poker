@@ -90,3 +90,8 @@ Legend:
 | Host broadcasts are recipient-targeted | host | Covered | `relay.spec.js` |
 | Guest auto-rejoin loop starts on close | guest | Covered | `persistence.spec.js` |
 | Rejoin ack/reject message handling | host/guest | Covered | `resilience.rejoin.spec.js` |
+| Guest presence heartbeat (immediate + periodic) | guest | Covered | `mqtt-resilience.spec.js` |
+| Host presence heartbeat triggers state sync | host | Covered | `mqtt-resilience.spec.js` |
+| Guest table state survives unstable/reconnect phases | guest | Covered | `mqtt-resilience.spec.js` |
+| MQTT inbound stall recovery + reveal resync (live broker) | guest | Covered | `mqtt-resilience.spec.js` |
+| MQTT stale inbound triggers single recovery close | guest | Covered | `mqtt-resilience.spec.js` |
