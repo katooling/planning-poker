@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { createHost, openHome, startGameFromLobby } = require("../helpers");
+import { test, expect } from "@playwright/test";
+import { createHost, openHome, startGameFromLobby } from "../helpers/index.js";
 
 test("host session snapshot restores table context after refresh", async ({ page }) => {
     await openHome(page);
@@ -24,10 +24,10 @@ test("host session snapshot restores table context after refresh", async ({ page
 test("guest restored table shows reconnect journey after refresh", async ({ page }) => {
     await openHome(page);
     await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { showView } = await import("/js/ui.js");
-        const { renderTable } = await import("/js/render.js");
-        const { saveSessionSnapshot } = await import("/js/persistence.js");
+        const { state } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
+        const { saveSessionSnapshot } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.localId = "guestrestore01";
@@ -124,9 +124,9 @@ test("host can approve and reject unknown guest rejoin requests", async ({ page 
     await createHost(page, "HostApprove");
 
     await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { renderHostLobby } = await import("/js/render.js");
-        const { showView } = await import("/js/ui.js");
+        const { state } = window.__planningPokerE2E;
+        const { renderHostLobby } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
 
         const sent = [];
         state.hostRecoveryRelay = {
@@ -193,10 +193,10 @@ test("guest table disconnect starts auto-rejoin loop", async ({ page }) => {
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { onHostChannelClose } = await import("/js/guest.js");
-            const { els, showView } = await import("/js/ui.js");
-            const { renderTable } = await import("/js/render.js");
+            const { state } = window.__planningPokerE2E;
+            const { onHostChannelClose } = window.__planningPokerE2E;
+            const { els, showView } = window.__planningPokerE2E;
+            const { renderTable } = window.__planningPokerE2E;
 
             state.role = "guest";
             state.displayName = "GuestAuto";

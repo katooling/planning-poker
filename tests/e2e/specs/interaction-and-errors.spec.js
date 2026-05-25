@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { createHost, openHome, readCode, setConnectionMode, setConnectionModeForPages } = require("../helpers");
+import { test, expect } from "@playwright/test";
+import { createHost, openHome, readCode, setConnectionMode, setConnectionModeForPages } from "../helpers/index.js";
 
 test("escape exits guest connect view back to home", async ({ page }) => {
     await openHome(page);

@@ -1,13 +1,12 @@
-const { test, expect } = require("@playwright/test");
-const {
-    connectGuestToHost,
+import { test, expect } from "@playwright/test";
+import {    connectGuestToHost,
     createHost,
     openHome,
     playerCard,
     startGameFromLobby,
     startGameFromLobbyStrict,
     waitForGuestConnection
-} = require("../helpers");
+} from "../helpers/index.js";
 
 test("host and guest can play a full round lifecycle", async ({ browser }) => {
     test.setTimeout(90_000);

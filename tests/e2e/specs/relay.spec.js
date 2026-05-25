@@ -1,11 +1,11 @@
-const { test, expect } = require("@playwright/test");
-const { openHome } = require("../helpers");
-const {
+import { test, expect } from "@playwright/test";
+import { openHome } from "../helpers/index.js";
+import {
     buildConnack,
     buildSuback,
     packet,
     encodeRemainingLength
-} = require("../helpers/mocks/websocket");
+} from "../helpers/mocks/websocket.js";
 
 function mockFunctionSources() {
     return {
@@ -67,9 +67,9 @@ test("guest fallback starts after first failed state without waiting for second 
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { setupGuestPeerHandlers } = await import("/js/guest.js");
-            const { els } = await import("/js/ui.js");
+            const { state } = window.__planningPokerE2E;
+            const { setupGuestPeerHandlers } = window.__planningPokerE2E;
+            const { els } = window.__planningPokerE2E;
 
             state.role = "guest";
             state.currentView = "guestConnect";
@@ -155,9 +155,9 @@ test("guest relay timeout shows terminal error notice", async ({ page }) => {
 
         window.WebSocket = TimeoutWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { setupGuestPeerHandlers } = await import("/js/guest.js");
-            const { els } = await import("/js/ui.js");
+            const { state } = window.__planningPokerE2E;
+            const { setupGuestPeerHandlers } = window.__planningPokerE2E;
+            const { els } = window.__planningPokerE2E;
 
             state.role = "guest";
             state.currentView = "guestConnect";
@@ -262,7 +262,7 @@ test("mqtt relay channel works with mocked websocket transport", async ({ page }
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { createMqttRelayChannel } = await import("/js/mqtt-relay.js");
+            const { createMqttRelayChannel } = window.__planningPokerE2E;
             const channel = createMqttRelayChannel("guest", "room-smoke", "guest-smoke", {
                 onOpen: () => {},
                 onMessage: () => {},
@@ -350,14 +350,14 @@ test("mqtt guest inbound stall triggers recovery reconnect", async ({ page }) =>
         window.WebSocket = ReceiveDeadWebSocket;
 
         try {
-            const { state } = await import("/js/state.js");
+            const { state } = window.__planningPokerE2E;
             const {
                 onHostChannelClose,
                 onHostChannelOpen,
                 runGuestMqttHealthCheckForTest
-            } = await import("/js/guest.js");
-            const { els, showView } = await import("/js/ui.js");
-            const { renderTable } = await import("/js/render.js");
+            } = window.__planningPokerE2E;
+            const { els, showView } = window.__planningPokerE2E;
+            const { renderTable } = window.__planningPokerE2E;
 
             state.role = "guest";
             state.displayName = "GuestMqttStale";
@@ -436,8 +436,8 @@ test("mqtt guest inbound stall triggers recovery reconnect", async ({ page }) =>
 test("host broadcast targets each guest explicitly", async ({ page }) => {
     await openHome(page);
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { broadcastMessageToGuests } = await import("/js/host.js");
+        const { state } = window.__planningPokerE2E;
+        const { broadcastMessageToGuests } = window.__planningPokerE2E;
 
         const sent = [];
         const sharedRelay = {

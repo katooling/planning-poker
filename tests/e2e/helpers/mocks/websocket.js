@@ -38,7 +38,7 @@ function encodeUtf8String(value) {
     return output;
 }
 
-module.exports = {
+export {
     encodeRemainingLength,
     packet,
     buildConnack,

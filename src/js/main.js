@@ -36,6 +36,7 @@ import {
     showJoinLinkConnectingUi
 } from "./join-link.js";
 import { setLocalVote } from "./game.js";
+import { installE2EBridge } from "./e2e-bridge.js";
 import {
     configureHost,
     broadcastState,
@@ -116,6 +117,7 @@ function init() {
         showView("home");
     }
     window.planningPokerLog = log;
+    installE2EBridge();
     log.info("init", "Application initialized", {
         restoredName: state.displayName || null,
         restoredSession: restored ? state.role : null

@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { createHost, openHome } = require("../helpers");
+import { test, expect } from "@playwright/test";
+import { createHost, openHome } from "../helpers/index.js";
 
 test("create/join requires a display name", async ({ page }) => {
     await openHome(page);
@@ -36,9 +36,9 @@ test("guest reconnect path from disconnected table returns to join flow", async 
     await openHome(page);
 
     await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { showView } = await import("/js/ui.js");
-        const { renderTable } = await import("/js/render.js");
+        const { state } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.displayName = "GuestReconnect";

@@ -1,13 +1,12 @@
-const { test, expect } = require("@playwright/test");
-const {
-    createHost,
+import { test, expect } from "@playwright/test";
+import {    createHost,
     decodeSignalCodeInPage,
     openHome,
     readCode,
     setConnectionMode,
     setConnectionModeForPages,
     setConnectionPreferences
-} = require("../helpers");
+} from "../helpers/index.js";
 
 test("join code UI shows shareability hint", async ({ page }) => {
     await openHome(page);

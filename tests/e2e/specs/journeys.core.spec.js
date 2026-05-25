@@ -1,11 +1,10 @@
-const { test, expect } = require("@playwright/test");
-const {
-    connectGuestToHost,
+import { test, expect } from "@playwright/test";
+import {    connectGuestToHost,
     createHost,
     openHome,
     playerCard,
     startGameFromLobbyStrict
-} = require("../helpers");
+} from "../helpers/index.js";
 
 test("guest cannot operate host-only table controls", async ({ browser }) => {
     test.setTimeout(90_000);

@@ -1,5 +1,6 @@
-const { expect } = require("@playwright/test");
-async function waitForGuestConnection(guestPage, timeoutMs) {
+import { expect } from "@playwright/test";
+
+export async function waitForGuestConnection(guestPage, timeoutMs) {
     try {
         await expect(guestPage.locator("#tableView.active")).toBeVisible({ timeout: timeoutMs });
         return true;
@@ -8,7 +9,7 @@ async function waitForGuestConnection(guestPage, timeoutMs) {
     }
 }
 
-async function connectGuestToHost(hostPage, guestPage, guestName) {
+export async function connectGuestToHost(hostPage, guestPage, guestName) {
     const roomCodeText = await hostPage.locator("#hostRoomCode").textContent();
     const roomCode = String(roomCodeText || "").trim();
     await guestPage.locator("#displayNameInput").fill(guestName);
@@ -34,8 +35,3 @@ async function connectGuestToHost(hostPage, guestPage, guestName) {
 
     return { connected };
 }
-
-module.exports = {
-    waitForGuestConnection,
-    connectGuestToHost
-};

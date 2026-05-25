@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { openHome } = require("../helpers");
+import { test, expect } from "@playwright/test";
+import { openHome } from "../helpers/index.js";
 
 test("guest webrtc disconnected state triggers channel recovery", async ({ page }) => {
     await openHome(page);
@@ -53,10 +53,10 @@ test("guest webrtc disconnected state triggers channel recovery", async ({ page 
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { setupGuestPeerHandlers, onHostChannelOpen } = await import("/js/guest.js");
-            const { els } = await import("/js/ui.js");
-            const { showView } = await import("/js/ui.js");
+            const { state } = window.__planningPokerE2E;
+            const { setupGuestPeerHandlers, onHostChannelOpen } = window.__planningPokerE2E;
+            const { els } = window.__planningPokerE2E;
+            const { showView } = window.__planningPokerE2E;
 
             let channelClosed = false;
             const fakeDc = {
@@ -112,10 +112,10 @@ test("guest rejoinAck updates room and restores connected status", async ({ page
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { handleGuestInboundMessage } = await import("/js/guest.js");
-        const { showView } = await import("/js/ui.js");
-        const { renderTable } = await import("/js/render.js");
+        const { state } = window.__planningPokerE2E;
+        const { handleGuestInboundMessage } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.displayName = "GuestAck";
@@ -154,10 +154,10 @@ test("guest rejoinReject shows pending approval state", async ({ page }) => {
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { handleGuestInboundMessage } = await import("/js/guest.js");
-        const { showView } = await import("/js/ui.js");
-        const { renderTable } = await import("/js/render.js");
+        const { state } = window.__planningPokerE2E;
+        const { handleGuestInboundMessage } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
 
         let closed = false;
         state.role = "guest";
@@ -199,8 +199,8 @@ test("host auto-approves known guest rejoin without queueing pending request", a
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { onHostRecoveryRelayMessage } = await import("/js/host-peers.js");
+        const { state } = window.__planningPokerE2E;
+        const { onHostRecoveryRelayMessage } = window.__planningPokerE2E;
 
         const roomId = "room-known-rejoin";
         const hostId = "host-known-rejoin";
@@ -314,8 +314,8 @@ test("host recovery relay listener reconnects after relay close", async ({ page 
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { startHostRecoveryRelayListener } = await import("/js/host-peers.js");
+            const { state } = window.__planningPokerE2E;
+            const { startHostRecoveryRelayListener } = window.__planningPokerE2E;
 
             state.role = "host";
             state.localId = "host-reconnect-listener";
@@ -404,10 +404,10 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { onHostChannelClose } = await import("/js/guest.js");
-            const { showView, els } = await import("/js/ui.js");
-            const { renderTable } = await import("/js/render.js");
+            const { state } = window.__planningPokerE2E;
+            const { onHostChannelClose } = window.__planningPokerE2E;
+            const { showView, els } = window.__planningPokerE2E;
+            const { renderTable } = window.__planningPokerE2E;
 
             state.role = "guest";
             state.currentView = "table";
@@ -495,9 +495,9 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { connectGuestByRoomCode } = await import("/js/guest.js");
-            const { showView, els } = await import("/js/ui.js");
+            const { state } = window.__planningPokerE2E;
+            const { connectGuestByRoomCode } = window.__planningPokerE2E;
+            const { showView, els } = window.__planningPokerE2E;
 
             state.displayName = "GuestQuickClose";
             state.role = "guest";

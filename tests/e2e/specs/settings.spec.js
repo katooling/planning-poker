@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { openConnectionSettings, openHome, saveConnectionSettings, setConnectionPreferences } = require("../helpers");
+import { test, expect } from "@playwright/test";
+import { openConnectionSettings, openHome, saveConnectionSettings, setConnectionPreferences } from "../helpers/index.js";
 
 test("connection settings dialog persists custom ICE servers", async ({ page }) => {
     await openHome(page);

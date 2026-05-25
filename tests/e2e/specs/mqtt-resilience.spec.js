@@ -1,6 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const {
-    connectGuestToHost,
+import { test, expect } from "@playwright/test";
+import {    connectGuestToHost,
     createHost,
     openHome,
     playerCard,
@@ -9,7 +8,7 @@ const {
     setConnectionPreferences,
     startGameFromLobby,
     waitForGuestConnection
-} = require("../helpers");
+} from "../helpers/index.js";
 
 test("guest presence heartbeat sends immediate and periodic beats", async ({ page }) => {
     await openHome(page);
@@ -17,8 +16,8 @@ test("guest presence heartbeat sends immediate and periodic beats", async ({ pag
     const result = await page.evaluate(async () => {
         window.__PP_TEST_PRESENCE_PING_INTERVAL_MS = 60;
         const sent = [];
-        const { state } = await import("/js/state.js");
-        const { onHostChannelOpen } = await import("/js/guest.js");
+        const { state } = window.__planningPokerE2E;
+        const { onHostChannelOpen } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.displayName = "GuestBeat";
@@ -63,9 +62,9 @@ test("host presence heartbeat triggers state broadcast every cycle", async ({ pa
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { handleHostInboundMessage } = await import("/js/host-peers.js");
-        const { broadcastState } = await import("/js/host-session.js");
+        const { state } = window.__planningPokerE2E;
+        const { handleHostInboundMessage } = window.__planningPokerE2E;
+        const { broadcastState } = window.__planningPokerE2E;
 
         const guestId = "guest-presence-sync";
         const hostId = "host-presence-sync";
@@ -146,8 +145,8 @@ test("stale mqtt health checks close channel only once per recovery", async ({ p
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { onHostChannelOpen, runGuestMqttHealthCheckForTest } = await import("/js/guest.js");
+        const { state } = window.__planningPokerE2E;
+        const { onHostChannelOpen, runGuestMqttHealthCheckForTest } = window.__planningPokerE2E;
 
         let closeCount = 0;
         const channel = {
@@ -185,13 +184,13 @@ test("guest remote state persists across connection status changes", async ({ pa
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
+        const { state } = window.__planningPokerE2E;
         const {
             handleGuestInboundMessage,
             getGuestSessionDiagnosticsForTest
-        } = await import("/js/guest.js");
-        const { renderTable } = await import("/js/render.js");
-        const { showView } = await import("/js/ui.js");
+        } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.displayName = "GuestState";
@@ -290,7 +289,7 @@ test("live mqtt guest survives simulated idle and syncs host reveal", async ({ b
     await guest.evaluate(async () => {
         window.__PP_TEST_MQTT_INBOUND_STALE_MS = 120;
         window.__PP_TEST_MQTT_HEALTH_CHECK_MS = 40;
-        const { ageGuestMqttInboundForTest, runGuestMqttHealthCheckForTest } = await import("/js/guest.js");
+        const { ageGuestMqttInboundForTest, runGuestMqttHealthCheckForTest } = window.__planningPokerE2E;
         ageGuestMqttInboundForTest(200);
         runGuestMqttHealthCheckForTest();
     });
@@ -316,7 +315,7 @@ test("live mqtt guest survives simulated idle and syncs host reveal", async ({ b
     await expect(guest.locator("#statAverage")).toHaveText("6.50");
 
     const afterReveal = await guest.evaluate(async () => {
-        const { getGuestSessionDiagnosticsForTest } = await import("/js/guest.js");
+        const { getGuestSessionDiagnosticsForTest } = window.__planningPokerE2E;
         return getGuestSessionDiagnosticsForTest();
     });
     expect(afterReveal.remoteState.revealed).toBe(true);

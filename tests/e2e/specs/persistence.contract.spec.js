@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { openHome } = require("../helpers");
+import { test, expect } from "@playwright/test";
+import { openHome } from "../helpers/index.js";
 
 function hostSnapshot(overrides = {}) {
     return {
@@ -96,7 +96,7 @@ test("host snapshot restores approved guest IDs for rejoin auto-approval", async
 
     await page.reload();
     const approvedIds = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
+        const { state } = window.__planningPokerE2E;
         return state.hostApprovedGuestIds;
     });
     expect(approvedIds).toEqual(["guest-known-1", "guest-known-2"]);
@@ -133,7 +133,7 @@ test("legacy host snapshot derives approved guests from players", async ({ page 
 
     await page.reload();
     const approvedIds = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
+        const { state } = window.__planningPokerE2E;
         return state.hostApprovedGuestIds;
     });
     expect(approvedIds).toEqual(["guestlegacy01"]);
@@ -152,7 +152,7 @@ test("host snapshot preserves pending rejoin requests across reload", async ({ p
 
     await page.reload();
     const pending = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
+        const { state } = window.__planningPokerE2E;
         return state.hostPendingRejoinRequests;
     });
     expect(Array.isArray(pending)).toBe(true);
