@@ -9,6 +9,16 @@ const {
     setConnectionPreferences
 } = require("../helpers");
 
+test("plain home hides join link status and room PIN until invite or join flow", async ({ page }) => {
+    await openHome(page);
+    await expect(page.locator("#homeDefaultHeading")).toBeVisible();
+    await expect(page.locator("#joinLinkHeading")).toBeHidden();
+    await expect(page.locator("#joinLinkPinField")).toBeHidden();
+    await expect(page.locator("#joinLinkStatusPhase")).toBeHidden();
+    await expect(page.locator("#createRoomBtn")).toBeVisible();
+    await expect(page.locator("#joinRoomBtn")).toBeVisible();
+});
+
 test("join code UI shows shareability hint", async ({ page }) => {
     await openHome(page);
     await setConnectionMode(page, "manualWebRtc");

@@ -105,7 +105,7 @@ export function renderJoinLinkHome() {
         els.joinLinkPinField.hidden = !(linkLanding || inLinkFlow) || showStatus;
     }
     if (els.homeDefaultActions) {
-        els.homeDefaultActions.hidden = linkLanding || inLinkFlow;
+        els.homeDefaultActions.hidden = showStatus;
     }
     if (els.createRoomBtn) {
         els.createRoomBtn.hidden = linkLanding || inLinkFlow;

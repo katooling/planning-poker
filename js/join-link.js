@@ -24,13 +24,14 @@ export function isJoinLinkContext() {
 
 export function activateJoinLinkLanding() {
     const roomCode = getRoomCodeFromUrl();
-    if (!roomCode) return false;
-    state.joinLinkRoomCode = roomCode;
-    state.guestJoinContext = null;
-    state.guestJoinPhase = "form";
-    state.joinLinkSubtext = "";
+    if (roomCode) {
+        state.joinLinkRoomCode = roomCode;
+        state.guestJoinContext = null;
+        state.guestJoinPhase = "form";
+        state.joinLinkSubtext = "";
+    }
     renderJoinLinkHome();
-    return true;
+    return !!roomCode;
 }
 
 export function setJoinLinkPhase(phase) {
