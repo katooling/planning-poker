@@ -25,8 +25,8 @@ export function renderHostLobby() {
                 <div class="player-name">${escapeHtml(player.name)}</div>
                 <div class="player-meta">${roleTag} • ${votedText}</div>
             </div>
-            <div class="row player-row-actions">
-                <span class="status"><span class="status-dot ${dotClass}"></span>${player.connected ? "Online" : "Offline"}</span>
+            <div class="flex flex-wrap items-center justify-end gap-2.5 player-row-actions">
+                <span class="inline-flex items-center gap-1.5 text-[13px] text-muted"><span class="status-dot ${dotClass}"></span>${player.connected ? "Online" : "Offline"}</span>
                 ${kickButton}
             </div>
         </div>`;
@@ -47,9 +47,9 @@ export function renderHostLobby() {
         els.hostPendingRejoinList.innerHTML = pending.map((request) => {
             const safeId = escapeHtml(request.id);
             const safeName = escapeHtml(request.name || "Guest");
-            return `<div class="row-between">
-                <div class="subtle">${safeName}</div>
-                <div class="row">
+            return `<div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="text-sm text-muted">${safeName}</div>
+                <div class="flex flex-wrap items-center gap-2.5">
                     <button class="btn btn-secondary" data-approve-rejoin="${safeId}">Approve</button>
                     <button class="btn btn-secondary" data-reject-rejoin="${safeId}">Reject</button>
                 </div>
@@ -240,7 +240,7 @@ function getCurrentRoundInfo(isHost) {
 
 export function renderTablePlayers(players) {
     if (!players.length) {
-        els.tablePlayersGrid.innerHTML = "<div class=\"subtle\">No players connected yet.</div>";
+        els.tablePlayersGrid.innerHTML = "<div class=\"text-sm text-muted\">No players connected yet.</div>";
         return;
     }
 

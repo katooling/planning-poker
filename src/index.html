@@ -4,61 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planning Poker</title>
-    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <div class="title-bar">
-            <div class="title-copy">
+    <div class="mx-auto w-full max-w-[1100px]">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-3 max-sm:flex-col max-sm:items-start">
+            <div class="grid gap-1">
                 <h1>Planning Poker</h1>
-                <div class="subtle">Zero-server planning poker with MQTT quick join</div>
+                <div class="text-sm text-muted">Zero-server planning poker with MQTT quick join</div>
             </div>
-            <div class="row">
+            <div class="flex flex-wrap items-center gap-2.5 max-sm:w-full">
                 <span id="currentUserBadge" class="current-user-badge" aria-live="polite"></span>
-                <button id="iceSettingsBtn" class="btn btn-secondary btn-icon" title="Connection settings">Connection Settings</button>
+                <button id="iceSettingsBtn" class="btn btn-secondary whitespace-nowrap max-sm:w-full" title="Connection settings">Connection Settings</button>
             </div>
         </div>
 
         <main>
             <section id="homeView" class="view active" data-testid="view-home">
-                <div class="stack-lg">
+                <div class="grid gap-5">
                     <div id="homeHeadingBlock">
                         <div id="homeDefaultHeading">
-                            <div class="panel-heading">Start Session</div>
-                            <div class="panel-note">Enter your display name, then create a room or join one.</div>
+                            <div class="mb-2 text-[15px] font-semibold">Start Session</div>
+                            <div class="mb-3 text-[13px] text-muted">Enter your display name, then create a room or join one.</div>
                         </div>
                         <div id="joinLinkHeading" class="join-link-only" hidden>
-                            <div class="panel-heading">Join Session</div>
-                            <div class="panel-note">You were invited to a room. Enter your name to join.</div>
+                            <div class="mb-2 text-[15px] font-semibold">Join Session</div>
+                            <div class="mb-3 text-[13px] text-muted">You were invited to a room. Enter your name to join.</div>
                         </div>
                     </div>
 
-                    <div id="joinLinkFormBlock" class="stack" data-testid="join-link-form">
-                        <div class="stack">
-                            <label class="field-label" for="displayNameInput">Display Name</label>
+                    <div id="joinLinkFormBlock" class="grid gap-3" data-testid="join-link-form">
+                        <div class="grid gap-3">
+                            <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="displayNameInput">Display Name</label>
                             <input id="displayNameInput" data-testid="input-display-name" type="text" maxlength="40" placeholder="Your name">
                         </div>
 
-                        <div id="joinLinkPinField" class="stack join-link-only" hidden>
-                            <label class="field-label" for="joinLinkPinInput">Room PIN (if required)</label>
+                        <div id="joinLinkPinField" class="grid gap-3 join-link-only" hidden>
+                            <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="joinLinkPinInput">Room PIN (if required)</label>
                             <input id="joinLinkPinInput" data-testid="input-join-link-pin" type="text" placeholder="Enter room PIN">
                         </div>
 
-                        <div id="homeDefaultActions" class="row">
+                        <div id="homeDefaultActions" class="flex flex-wrap items-center gap-2.5 max-sm:[&_.btn]:min-w-full max-sm:[&_.btn]:flex-1">
                             <button id="createRoomBtn" data-testid="btn-create-room" class="btn btn-primary">Create Room</button>
                             <button id="joinRoomBtn" data-testid="btn-join-room" class="btn btn-secondary">Join Room</button>
                         </div>
                     </div>
 
-                    <div id="joinLinkStatusPhase" class="join-link-status-panel" data-testid="join-link-status" hidden>
-                        <div class="join-link-status-card">
+                    <div id="joinLinkStatusPhase" class="grid gap-3" data-testid="join-link-status" hidden>
+                        <div class="grid gap-2 rounded-xl border border-border bg-panel p-4 shadow-[var(--shadow-panel)]">
                             <span class="join-link-spinner" aria-hidden="true"></span>
-                            <div id="joinLinkStatusTitle" class="panel-heading">Connecting to room…</div>
-                            <div id="joinLinkStatusBody" class="panel-note"></div>
-                            <div id="joinLinkRoomDisplay" class="code-display mono join-link-room-code"></div>
-                            <div id="joinLinkSubtext" class="subtle join-link-subtext"></div>
+                            <div id="joinLinkStatusTitle" class="mb-2 text-[15px] font-semibold">Connecting to room…</div>
+                            <div id="joinLinkStatusBody" class="mb-3 text-[13px] text-muted"></div>
+                            <div id="joinLinkRoomDisplay" class="code-display mono text-sm text-muted"></div>
+                            <div id="joinLinkSubtext" class="min-h-[1.2em] text-sm text-muted"></div>
                         </div>
-                        <div class="row">
+                        <div class="flex flex-wrap items-center gap-2.5">
                             <button id="joinLinkCancelBtn" data-testid="btn-join-link-cancel" type="button" class="btn btn-secondary">Cancel</button>
                         </div>
                     </div>
@@ -69,58 +68,58 @@
             </section>
 
             <section id="hostLobbyView" class="view" data-testid="view-host-lobby">
-                <div class="stack-lg">
-                    <div class="row-between">
+                <div class="grid gap-5">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <div class="panel-heading">Host Lobby</div>
-                            <div class="panel-note">Share room code/link for quick MQTT join. Manual code exchange is optional.</div>
+                            <div class="mb-2 text-[15px] font-semibold">Host Lobby</div>
+                            <div class="mb-3 text-[13px] text-muted">Share room code/link for quick MQTT join. Manual code exchange is optional.</div>
                         </div>
                         <span class="chip">You are host</span>
                     </div>
 
-                    <div class="grid-two">
-                        <div class="panel">
-                            <div class="panel-heading">Players</div>
-                            <div id="hostPlayerList" class="player-list"></div>
-                            <div id="hostPendingRejoinPanel" class="stack pending-rejoin-panel">
-                                <div class="field-label">Pending Rejoin Requests</div>
-                                <div id="hostPendingRejoinList" class="stack"></div>
+                    <div class="grid grid-cols-2 gap-3.5 max-[900px]:grid-cols-1">
+                        <div class="rounded-xl border border-border bg-panel p-4">
+                            <div class="mb-2 text-[15px] font-semibold">Players</div>
+                            <div id="hostPlayerList" class="grid gap-2"></div>
+                            <div id="hostPendingRejoinPanel" class="pending-rejoin-panel mt-3 grid gap-3">
+                                <div class="text-[13px] font-semibold tracking-wider text-muted uppercase">Pending Rejoin Requests</div>
+                                <div id="hostPendingRejoinList" class="grid gap-3"></div>
                             </div>
                         </div>
 
-                        <div id="hostRoomAccessPanel" class="panel stack">
+                        <div id="hostRoomAccessPanel" class="grid gap-3 rounded-xl border border-border bg-panel p-4">
                             <div>
-                                <div class="panel-heading">Room Access</div>
-                                <div class="panel-note">Primary flow: share room code or link and approve joins.</div>
+                                <div class="mb-2 text-[15px] font-semibold">Room Access</div>
+                                <div class="mb-3 text-[13px] text-muted">Primary flow: share room code or link and approve joins.</div>
                             </div>
-                            <div class="stack">
-                                <label class="field-label">Room Code</label>
+                            <div class="grid gap-3">
+                                <label class="text-[13px] font-semibold tracking-wider text-muted uppercase">Room Code</label>
                                 <div id="hostRoomCode" class="code-display mono"></div>
-                                <div class="row">
+                                <div class="flex flex-wrap items-center gap-2.5">
                                     <button id="copyHostRoomCodeBtn" class="btn btn-secondary">Copy Room Code</button>
                                     <button id="copyHostJoinLinkBtn" class="btn btn-secondary">Copy Join Link</button>
                                 </div>
-                                <label class="field-label" for="hostRoomPinInput">Room PIN (optional)</label>
+                                <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="hostRoomPinInput">Room PIN (optional)</label>
                                 <input id="hostRoomPinInput" type="text" maxlength="20" placeholder="Optional PIN for guests">
-                                <img id="hostRoomQrImage" class="room-qr-image" alt="Join room QR code">
+                                <img id="hostRoomQrImage" class="h-[140px] w-[140px] rounded-sm border border-border bg-white" alt="Join room QR code">
                             </div>
                         </div>
 
-                        <details id="hostManualFallbackDetails" class="panel stack manual-fallback-details">
+                        <details id="hostManualFallbackDetails" class="manual-fallback-details col-span-2 grid gap-3 rounded-xl border border-border bg-panel p-4 max-[900px]:col-span-1">
                             <summary>Manual WebRTC fallback (copy/paste codes)</summary>
-                            <div class="stack">
+                            <div class="grid gap-3">
                                 <textarea id="hostIncomingJoinCode" data-testid="input-host-join-code" class="code-box" placeholder="Paste guest join code"></textarea>
-                                <div class="row">
+                                <div class="flex flex-wrap items-center gap-2.5">
                                     <button id="acceptGuestBtn" data-testid="btn-accept-guest" class="btn btn-primary">Accept Guest</button>
                                     <button id="clearHostJoinCodeBtn" data-testid="btn-clear-host-join-code" class="btn btn-secondary">Clear</button>
                                 </div>
 
-                                <div class="stack">
-                                    <label class="field-label">Response Code (send to guest)</label>
+                                <div class="grid gap-3">
+                                    <label class="text-[13px] font-semibold tracking-wider text-muted uppercase">Response Code (send to guest)</label>
                                     <div id="hostResponseCode" data-testid="code-host-response" class="code-display mono">No response code yet.</div>
                                     <div id="hostResponseCodeMeta" class="code-meta">Waiting for guest join code.</div>
                                     <div id="hostResponseCodeQuality" class="code-quality quality-medium">Shareability: waiting for code</div>
-                                    <div class="row">
+                                    <div class="flex flex-wrap items-center gap-2.5">
                                         <button id="copyHostResponseCodeBtn" data-testid="btn-copy-host-response-plain" class="btn btn-secondary">Copy Plain</button>
                                         <button id="copyHostResponseCodeFormattedBtn" data-testid="btn-copy-host-response-formatted" class="btn btn-secondary">Copy Formatted</button>
                                     </div>
@@ -131,7 +130,7 @@
                         <div id="hostLobbyNotice" class="notice info"></div>
                     </div>
 
-                    <div class="row-between">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
                         <button id="hostStartGameBtn" data-testid="btn-host-start-game" class="btn btn-primary" disabled>Start Game</button>
                         <button id="hostBackHomeBtn" data-testid="btn-host-back-home" class="btn btn-secondary">Back</button>
                     </div>
@@ -139,51 +138,51 @@
             </section>
 
             <section id="guestConnectView" class="view" data-testid="view-guest-connect">
-                <div class="stack-lg">
-                    <div class="row-between">
+                <div class="grid gap-5">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <div class="panel-heading">Join Host</div>
-                            <div class="panel-note">Default: enter room code. Manual signaling is still available below.</div>
+                            <div class="mb-2 text-[15px] font-semibold">Join Host</div>
+                            <div class="mb-3 text-[13px] text-muted">Default: enter room code. Manual signaling is still available below.</div>
                         </div>
                         <span class="chip">Guest mode</span>
                     </div>
 
-                    <div id="guestQuickJoinPanel" class="panel stack">
-                        <label class="field-label" for="guestRoomCodeInput">Room Code</label>
+                    <div id="guestQuickJoinPanel" class="grid gap-3 rounded-xl border border-border bg-panel p-4">
+                        <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="guestRoomCodeInput">Room Code</label>
                         <input id="guestRoomCodeInput" data-testid="input-guest-room-code" type="text" placeholder="Enter room code">
-                        <label class="field-label" for="guestRoomPinInput">Room PIN (optional)</label>
+                        <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="guestRoomPinInput">Room PIN (optional)</label>
                         <input id="guestRoomPinInput" data-testid="input-guest-room-pin" type="text" placeholder="Enter room PIN">
-                        <div class="row">
+                        <div class="flex flex-wrap items-center gap-2.5">
                             <button id="connectGuestRoomBtn" data-testid="btn-connect-guest-room" class="btn btn-primary">Join Room</button>
                             <button id="guestBackHomeBtn" data-testid="btn-guest-back-home" class="btn btn-secondary">Back</button>
                         </div>
                     </div>
 
-                    <details id="guestManualFallbackDetails" class="panel stack manual-fallback-details">
+                    <details id="guestManualFallbackDetails" class="manual-fallback-details grid gap-3 rounded-xl border border-border bg-panel p-4">
                         <summary>Manual WebRTC fallback (copy/paste codes)</summary>
-                        <div class="stack">
-                            <div class="stepper">
+                        <div class="grid gap-3">
+                            <div class="mb-3 flex flex-wrap items-center gap-2">
                                 <span id="guestStep1" class="step active">1. Share Join Code</span>
                                 <span id="guestStep2" class="step">2. Paste Response</span>
                                 <span id="guestStep3" class="step">3. Connected</span>
                             </div>
 
-                            <div class="stack">
-                                <label class="field-label">Your Join Code</label>
+                            <div class="grid gap-3">
+                                <label class="text-[13px] font-semibold tracking-wider text-muted uppercase">Your Join Code</label>
                                 <div id="guestJoinCode" data-testid="code-guest-join" class="code-display mono">Generating code...</div>
                                 <div id="guestJoinCodeMeta" class="code-meta">Preparing connection details.</div>
                                 <div id="guestJoinCodeQuality" class="code-quality quality-medium">Shareability: waiting for code</div>
-                                <div class="row">
+                                <div class="flex flex-wrap items-center gap-2.5">
                                     <button id="copyGuestJoinCodeBtn" data-testid="btn-copy-guest-join-plain" class="btn btn-primary">Copy Plain</button>
                                     <button id="copyGuestJoinCodeFormattedBtn" data-testid="btn-copy-guest-join-formatted" class="btn btn-secondary">Copy Formatted</button>
                                     <button id="regenerateGuestJoinCodeBtn" data-testid="btn-regenerate-guest-join" class="btn btn-secondary">Regenerate</button>
                                 </div>
                             </div>
 
-                            <div class="stack">
-                                <label class="field-label" for="guestResponseCodeInput">Host Response Code</label>
+                            <div class="grid gap-3">
+                                <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="guestResponseCodeInput">Host Response Code</label>
                                 <textarea id="guestResponseCodeInput" data-testid="input-guest-response-code" class="code-box" placeholder="Paste host response code"></textarea>
-                                <div class="row">
+                                <div class="flex flex-wrap items-center gap-2.5">
                                     <button id="connectGuestBtn" data-testid="btn-connect-guest" class="btn btn-primary">Connect Manually</button>
                                 </div>
                             </div>
@@ -195,38 +194,38 @@
             </section>
 
             <section id="tableView" class="view" data-testid="view-table">
-                <div class="table-layout">
-                    <div class="row-between">
-                        <div class="table-round-header">
-                            <div class="panel-heading">Game Table</div>
-                            <div id="tableSubtitle" class="table-round-subtitle">Round 1</div>
-                            <input id="hostRoundTitleInput" class="code-box host-round-title-input" type="text" maxlength="80" placeholder="Add round title (host only)">
+                <div class="grid gap-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="rounded-md border border-surface-accent-strong bg-linear-to-b from-surface-accent to-panel p-3">
+                            <div class="mb-1.5 text-[15px] font-semibold">Game Table</div>
+                            <div id="tableSubtitle" class="text-base font-bold text-text-accent-strong">Round 1</div>
+                            <input id="hostRoundTitleInput" class="host-round-title-input code-box mt-2.5 border-surface-accent-strong text-[15px]" type="text" maxlength="80" placeholder="Add round title (host only)">
                         </div>
-                        <div class="row">
+                        <div class="flex flex-wrap items-center gap-2.5">
                             <span id="tableRoleChip" class="chip">Guest</span>
                             <button id="leaveSessionBtn" data-testid="btn-leave-session" class="btn btn-danger">Leave</button>
                         </div>
                     </div>
 
-                    <div id="statsBar" class="stats-bar">
-                        <div class="stat-box"><div class="stat-key">Average</div><div id="statAverage" class="stat-value">--</div></div>
-                        <div class="stat-box"><div class="stat-key">Median</div><div id="statMedian" class="stat-value">--</div></div>
-                        <div class="stat-box"><div class="stat-key">Min</div><div id="statMin" class="stat-value">--</div></div>
-                        <div class="stat-box"><div class="stat-key">Max</div><div id="statMax" class="stat-value">--</div></div>
-                        <div class="stat-box"><div class="stat-key">Consensus</div><div id="statConsensus" class="stat-value">--</div></div>
+                    <div id="statsBar" class="grid grid-cols-5 gap-2 max-[900px]:grid-cols-2">
+                        <div class="rounded-md border border-border bg-surface-subtle px-2.5 py-2"><div class="text-[11px] tracking-wide text-muted uppercase">Average</div><div id="statAverage" class="mt-0.5 text-lg font-bold">--</div></div>
+                        <div class="rounded-md border border-border bg-surface-subtle px-2.5 py-2"><div class="text-[11px] tracking-wide text-muted uppercase">Median</div><div id="statMedian" class="mt-0.5 text-lg font-bold">--</div></div>
+                        <div class="rounded-md border border-border bg-surface-subtle px-2.5 py-2"><div class="text-[11px] tracking-wide text-muted uppercase">Min</div><div id="statMin" class="mt-0.5 text-lg font-bold">--</div></div>
+                        <div class="rounded-md border border-border bg-surface-subtle px-2.5 py-2"><div class="text-[11px] tracking-wide text-muted uppercase">Max</div><div id="statMax" class="mt-0.5 text-lg font-bold">--</div></div>
+                        <div class="rounded-md border border-border bg-surface-subtle px-2.5 py-2"><div class="text-[11px] tracking-wide text-muted uppercase">Consensus</div><div id="statConsensus" class="mt-0.5 text-lg font-bold">--</div></div>
                     </div>
 
-                    <div class="panel">
-                        <div class="panel-heading">Players</div>
-                        <div id="tablePlayersGrid" class="cards-grid"></div>
+                    <div class="rounded-xl border border-border bg-panel p-4">
+                        <div class="mb-2 text-[15px] font-semibold">Players</div>
+                        <div id="tablePlayersGrid" class="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5"></div>
                     </div>
 
-                    <div class="panel stack">
-                        <div class="panel-heading">Your Vote</div>
-                        <div id="votePalette" class="card-palette"></div>
-                        <div class="row-between">
-                            <div class="status"><span id="connectionStatusDot" class="status-dot offline"></span><span id="connectionStatusText" data-testid="text-connection-status">Not connected</span></div>
-                            <div class="row">
+                    <div class="grid gap-3 rounded-xl border border-border bg-panel p-4">
+                        <div class="mb-2 text-[15px] font-semibold">Your Vote</div>
+                        <div id="votePalette" class="grid grid-cols-[repeat(auto-fill,minmax(56px,1fr))] gap-2 max-sm:grid-cols-5"></div>
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="inline-flex items-center gap-1.5 text-[13px] text-muted"><span id="connectionStatusDot" class="status-dot offline"></span><span id="connectionStatusText" data-testid="text-connection-status">Not connected</span></div>
+                            <div class="flex flex-wrap items-center gap-2.5">
                                 <button id="clearVoteBtn" data-testid="btn-clear-vote" class="btn btn-secondary">Clear Vote</button>
                                 <button id="hostRevealBtn" data-testid="btn-host-reveal" class="btn btn-primary">Reveal</button>
                                 <button id="hostResetBtn" data-testid="btn-host-reset" class="btn btn-secondary">New Round</button>
@@ -241,38 +240,38 @@
     </div>
 
     <dialog id="iceSettingsDialog" class="settings-dialog">
-        <div class="settings-stack">
+        <div class="grid gap-4 rounded-xl bg-panel p-5">
             <div>
-                <div class="panel-heading">Connection Settings</div>
-                <div class="panel-note">Select default connection mode and transport preferences.</div>
+                <div class="mb-2 text-[15px] font-semibold">Connection Settings</div>
+                <div class="mb-3 text-[13px] text-muted">Select default connection mode and transport preferences.</div>
             </div>
 
-            <div class="stack">
-                <label class="field-label" for="connectionStrategySelect">Default Connection Mode</label>
+            <div class="grid gap-3">
+                <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="connectionStrategySelect">Default Connection Mode</label>
                 <select id="connectionStrategySelect">
                     <option value="mqttQuickJoin">MQTT Quick Join (default)</option>
                     <option value="manualWebRtc">Manual WebRTC Signaling</option>
                 </select>
             </div>
 
-            <div class="stack">
-                <div class="field-label">MQTT Admission Controls</div>
+            <div class="grid gap-3">
+                <div class="text-[13px] font-semibold tracking-wider text-muted uppercase">MQTT Admission Controls</div>
                 <label><input id="hostRequireApprovalFirstJoinCheckbox" type="checkbox" checked> Require host approval for first join</label>
                 <label><input id="hostAutoApproveKnownRejoinCheckbox" type="checkbox" checked> Auto-approve known rejoins</label>
             </div>
 
-            <div class="stack">
-                <div class="field-label">Default STUN Servers</div>
+            <div class="grid gap-3">
+                <div class="text-[13px] font-semibold tracking-wider text-muted uppercase">Default STUN Servers</div>
                 <div id="defaultIceServersList" class="code-display mono"></div>
             </div>
 
-            <div class="stack">
-                <label class="field-label" for="customIceServersInput">Custom ICE Servers (optional)</label>
+            <div class="grid gap-3">
+                <label class="text-[13px] font-semibold tracking-wider text-muted uppercase" for="customIceServersInput">Custom ICE Servers (optional)</label>
                 <textarea id="customIceServersInput" class="code-box" placeholder="turn:example.com:3478?transport=tcp | username | password"></textarea>
                 <div id="iceSettingsNotice" class="notice info"></div>
             </div>
 
-            <div class="row-between">
+            <div class="flex flex-wrap items-center justify-between gap-3">
                 <button id="iceSettingsCancelBtn" class="btn btn-secondary">Cancel</button>
                 <button id="iceSettingsSaveBtn" class="btn btn-primary">Save Settings</button>
             </div>

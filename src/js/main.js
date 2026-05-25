@@ -1,3 +1,4 @@
+import "../styles.css";
 import { state, STORAGE_NAME_KEY } from "./state.js";
 import { log } from "./log.js";
 import {
