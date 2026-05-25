@@ -1,6 +1,7 @@
 import { NUMERIC_VOTES, VOTE_VALUES, state } from "./state.js";
 import { log } from "./log.js";
 import { saveSessionSnapshot } from "./persistence.js";
+import { canGuestSendToHost, getGuestConnectionPresentation } from "./guest-connection-status.js";
 
 const STATS_PLACEHOLDER = "--";
 
@@ -18,13 +19,26 @@ export function setLocalVote(vote, deps) {
     }
 
     if (state.role === "guest") {
-        if (state.guestChannel && state.guestChannel.readyState === "open") {
+        if (canGuestSendToHost() && state.guestChannel) {
             deps.sendJson(state.guestChannel, { t: "vote", v: vote });
-            deps.showNotice(deps.els.tableNotice, vote == null ? "Vote cleared." : "Vote sent.", "info", 1200);
-            log.info("game", "Vote sent", { role: "guest", vote });
+            const presentation = getGuestConnectionPresentation();
+            const voteNotice = vote == null ? "Vote cleared." : "Vote sent.";
+            const noticeText = presentation.online
+                ? voteNotice
+                : voteNotice + " Host updates may be delayed while connection recovers.";
+            deps.showNotice(deps.els.tableNotice, noticeText, presentation.online ? "info" : "warn", 1800);
+            log.info("game", "Vote sent", { role: "guest", vote, phase: state.guestConnectionPhase });
         } else {
-            deps.showNotice(deps.els.tableNotice, "Not connected yet. Vote will not be sent.", "warn");
-            log.warn("game", "Vote skipped; guest channel unavailable");
+            const presentation = getGuestConnectionPresentation();
+            const reconnectHint = presentation.text.includes("Reconnect")
+                ? ""
+                : " Use Reconnect if this persists.";
+            deps.showNotice(
+                deps.els.tableNotice,
+                presentation.text + ". Vote was not sent." + reconnectHint,
+                "warn"
+            );
+            log.warn("game", "Vote skipped; guest channel unavailable", { phase: state.guestConnectionPhase });
         }
     }
 }

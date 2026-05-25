@@ -16,8 +16,8 @@ export const mqttQuickJoinStrategy = {
         startHostSession(displayName);
         startHostRecoveryRelayListener();
     },
-    startGuest(displayName) {
-        startGuestQuickJoin(displayName);
+    startGuest(displayName, options = {}) {
+        startGuestQuickJoin(displayName, options);
     },
     connectGuestPrimary() {
         const { roomCode, pin } = readRoomCodeAndPin();

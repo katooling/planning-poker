@@ -287,8 +287,9 @@ export function handleHostInboundMessage(guestId, rawData) {
         if (!wasConnected || previousName !== nextName) {
             changed = true;
         }
+        // Always push state on presence so MQTT guests can resync after idle receive gaps.
+        broadcastState();
         if (changed) {
-            broadcastState();
             renderHostLobby();
             renderTable();
         }

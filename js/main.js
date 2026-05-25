@@ -21,7 +21,20 @@ import {
 } from "./ui.js";
 import { getActiveStrategy } from "./connection-strategies/index.js";
 import { loadConnectionSettings, saveConnectionSettings } from "./connection-settings.js";
-import { renderConnectionStrategySections, renderHostLobby, renderTable, renderVotePalette, setVoteSelectHandler } from "./render.js";
+import {
+    renderConnectionStrategySections,
+    renderHostLobby,
+    renderTable,
+    renderVotePalette,
+    setVoteSelectHandler
+} from "./render.js";
+import {
+    activateJoinLinkLanding,
+    cancelJoinLinkFlow,
+    getJoinLinkConnectParams,
+    shouldUseJoinLinkFlow,
+    showJoinLinkConnectingUi
+} from "./join-link.js";
 import { setLocalVote } from "./game.js";
 import {
     configureHost,
@@ -37,6 +50,7 @@ import {
     startHostRecoveryRelayListener,
     startHostSession
 } from "./host.js";
+import { canGuestSendToHost } from "./guest-connection-status.js";
 import {
     onGuestConnectWithResponseCode,
     connectGuestByRoomCode,
@@ -98,6 +112,7 @@ function init() {
     const restored = restoreSessionFromSnapshot(loadSessionSnapshot());
     if (!restored) {
         updateConnectionStatus(false, "Not connected");
+        activateJoinLinkLanding();
         showView("home");
     }
     window.planningPokerLog = log;
@@ -183,6 +198,9 @@ function wireHostEvents() {
 
 function wireGuestEvents() {
     els.joinRoomBtn.addEventListener("click", onJoinRoom);
+    if (els.joinLinkCancelBtn) {
+        els.joinLinkCancelBtn.addEventListener("click", cancelJoinLinkFlow);
+    }
     if (els.connectGuestRoomBtn) {
         els.connectGuestRoomBtn.addEventListener("click", () => {
             const activeStrategy = getActiveStrategy();
@@ -208,6 +226,7 @@ function wireGuestEvents() {
     els.guestBackHomeBtn.addEventListener("click", () => {
         shutdownGuest("Join canceled.");
         clearSessionSnapshot();
+        activateJoinLinkLanding();
         showView("home");
     });
 }
@@ -271,9 +290,16 @@ function wireSettingsEvents() {
 function wireKeyboardEvents() {
     document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
+            if (state.currentView === "home"
+                && state.guestJoinContext === "joinLink"
+                && state.guestJoinPhase !== "form") {
+                cancelJoinLinkFlow();
+                return;
+            }
             if (state.currentView === "guestConnect") {
                 shutdownGuest("Join canceled.");
                 clearSessionSnapshot();
+                activateJoinLinkLanding();
                 showView("home");
                 return;
             }
@@ -358,6 +384,7 @@ function getCurrentNoticeElement() {
     if (state.currentView === "hostLobby") return els.hostLobbyNotice;
     if (state.currentView === "guestConnect") return els.guestConnectNotice;
     if (state.currentView === "table") return els.tableNotice;
+    if (state.currentView === "home" && state.guestJoinContext === "joinLink") return els.joinLinkNotice;
     return els.homeNotice;
 }
 
@@ -377,13 +404,20 @@ function onJoinRoom() {
     if (!name) return;
     const activeStrategy = getActiveStrategy();
     if (activeStrategy && typeof activeStrategy.startGuest === "function") {
+        if (shouldUseJoinLinkFlow()) {
+            const connect = getJoinLinkConnectParams();
+            if (!connect) return;
+            activeStrategy.startGuest(name, {
+                forJoinLink: true,
+                roomCode: connect.roomCode,
+                pin: connect.pin
+            });
+            showJoinLinkConnectingUi();
+            void connectGuestByRoomCode(connect.roomCode, connect.pin, { source: "joinLink" });
+            return;
+        }
         activeStrategy.startGuest(name);
         renderConnectionStrategySections();
-        const roomFromUrl = getRoomCodeFromUrl();
-        if (roomFromUrl && els.guestRoomCodeInput) {
-            els.guestRoomCodeInput.value = roomFromUrl;
-            void connectGuestByRoomCode(roomFromUrl, els.guestRoomPinInput ? els.guestRoomPinInput.value : "");
-        }
         return;
     }
     startGuestSession(name);
@@ -559,6 +593,7 @@ function restoreGuestSnapshot(snapshot) {
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyMetaText,
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText
     );
+    state.guestConnectionPhase = "offline";
     updateConnectionStatus(false, "Disconnected");
 
     const shouldRestoreGuestTable = snapshot.currentView === "table" && (snapshot.guestRemoteState || snapshot.roomId);
@@ -582,7 +617,7 @@ function restoreGuestSnapshot(snapshot) {
 }
 
 function isGuestConnected() {
-    return !!(state.guestChannel && state.guestChannel.readyState === "open");
+    return canGuestSendToHost();
 }
 
 export function sanitizeName(name) {
@@ -605,11 +640,3 @@ export function loadStoredDisplayName() {
     }
 }
 
-function getRoomCodeFromUrl() {
-    try {
-        const url = new URL(window.location.href);
-        return String(url.searchParams.get("room") || "").trim();
-    } catch (_error) {
-        return "";
-    }
-}

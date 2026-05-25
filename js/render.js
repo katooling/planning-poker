@@ -1,5 +1,6 @@
 import { VOTE_VALUES, state } from "./state.js";
 import { els, escapeHtml, updateConnectionStatus } from "./ui.js";
+import { getGuestConnectionPresentation } from "./guest-connection-status.js";
 import { getCurrentRevealFlag, getHostPlayersAsArray, getRenderablePlayersForUI, renderStatsValues } from "./game.js";
 
 let voteSelectHandler = null;
@@ -73,6 +74,90 @@ export function renderHostLobby() {
     }
 }
 
+const JOIN_LINK_STATUS_COPY = {
+    connecting: {
+        title: "Connecting to room…",
+        body: "Setting up a connection to the host."
+    },
+    waitingApproval: {
+        title: "Waiting for the host to let you in",
+        body: "If nothing happens, ask the host to approve you in their lobby."
+    },
+    entering: {
+        title: "You're in!",
+        body: "Entering the table…"
+    }
+};
+
+export function renderJoinLinkHome() {
+    const linkLanding = shouldShowJoinLinkLanding();
+    const inLinkFlow = state.guestJoinContext === "joinLink";
+    const phase = state.guestJoinPhase || "form";
+    const showStatus = inLinkFlow && phase !== "form";
+
+    if (els.homeDefaultHeading) {
+        els.homeDefaultHeading.hidden = linkLanding || inLinkFlow;
+    }
+    if (els.joinLinkHeading) {
+        els.joinLinkHeading.hidden = !(linkLanding || inLinkFlow);
+    }
+    if (els.joinLinkPinField) {
+        els.joinLinkPinField.hidden = !(linkLanding || inLinkFlow) || showStatus;
+    }
+    if (els.homeDefaultActions) {
+        els.homeDefaultActions.hidden = linkLanding || inLinkFlow;
+    }
+    if (els.createRoomBtn) {
+        els.createRoomBtn.hidden = linkLanding || inLinkFlow;
+    }
+    if (els.joinLinkStatusPhase) {
+        els.joinLinkStatusPhase.hidden = !showStatus;
+        els.joinLinkStatusPhase.dataset.phase = showStatus ? phase : "";
+    }
+    if (els.joinLinkFormBlock) {
+        const hideFormFields = showStatus;
+        els.displayNameInput.disabled = hideFormFields;
+        if (els.joinLinkPinInput) {
+            els.joinLinkPinInput.disabled = hideFormFields;
+        }
+    }
+    if (els.joinRoomBtn) {
+        const linkMode = linkLanding || inLinkFlow;
+        els.joinRoomBtn.hidden = showStatus;
+        els.joinRoomBtn.disabled = showStatus;
+        els.joinRoomBtn.textContent = linkMode ? "Join Session" : "Join Room";
+        els.joinRoomBtn.classList.toggle("btn-primary", linkMode);
+        els.joinRoomBtn.classList.toggle("btn-secondary", !linkMode);
+    }
+    if (els.joinLinkCancelBtn) {
+        els.joinLinkCancelBtn.hidden = !showStatus;
+    }
+    if (els.joinLinkRoomDisplay) {
+        const room = String(state.joinLinkRoomCode || state.roomId || "").trim();
+        els.joinLinkRoomDisplay.textContent = room ? ("Room " + room) : "";
+    }
+    if (els.joinLinkStatusTitle && els.joinLinkStatusBody) {
+        const copy = JOIN_LINK_STATUS_COPY[phase] || JOIN_LINK_STATUS_COPY.connecting;
+        els.joinLinkStatusTitle.textContent = copy.title;
+        els.joinLinkStatusBody.textContent = copy.body;
+    }
+    if (els.joinLinkSubtext) {
+        els.joinLinkSubtext.textContent = state.joinLinkSubtext || "";
+    }
+}
+
+function shouldShowJoinLinkLanding() {
+    if (state.connectionStrategy !== "mqttQuickJoin") return false;
+    if (state.guestJoinContext === "joinLink") return false;
+    if (state.role !== "idle") return false;
+    try {
+        const url = new URL(window.location.href);
+        return !!String(url.searchParams.get("room") || "").trim();
+    } catch (_error) {
+        return false;
+    }
+}
+
 export function renderConnectionStrategySections() {
     const manualMode = state.connectionStrategy === "manualWebRtc";
     if (els.hostRoomAccessPanel) {
@@ -91,12 +176,14 @@ export function renderConnectionStrategySections() {
 
 export function renderTable() {
     const isHost = state.role === "host";
-    const isGuestConnected = !!(state.guestChannel && state.guestChannel.readyState === "open");
+    const guestConnection = isHost ? null : getGuestConnectionPresentation();
+    const isGuestConnected = !!(guestConnection && guestConnection.online);
     const isRevealed = getCurrentRevealFlag();
     const roundInfo = getCurrentRoundInfo(isHost);
 
     els.tableRoleChip.textContent = isHost ? "Host" : "Guest";
-    els.leaveSessionBtn.textContent = isHost ? "Back to Lobby" : (isGuestConnected ? "Leave" : "Reconnect");
+    const guestCanLeave = !!(guestConnection && guestConnection.canSend);
+    els.leaveSessionBtn.textContent = isHost ? "Back to Lobby" : (guestCanLeave ? "Leave" : "Reconnect");
     els.hostRevealBtn.style.display = isHost ? "inline-block" : "none";
     els.hostResetBtn.style.display = isHost ? "inline-block" : "none";
     els.hostRevealBtn.textContent = isRevealed ? "Conceal" : "Reveal";
@@ -127,7 +214,9 @@ export function renderTable() {
         updateConnectionStatus(true, "Hosting " + Math.max(0, connected - 1) + " guest(s)");
         return;
     }
-    updateConnectionStatus(isGuestConnected, isGuestConnected ? "Connected to host" : "Disconnected");
+    if (guestConnection) {
+        updateConnectionStatus(guestConnection.online, guestConnection.text);
+    }
 }
 
 function getCurrentRoundInfo(isHost) {

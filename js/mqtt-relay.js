@@ -5,6 +5,15 @@ const MQTT_PROTOCOL_LEVEL = 4;
 const MQTT_KEEP_ALIVE_SECONDS = 30;
 const PING_INTERVAL_MS = 20_000;
 const CONNECT_TIMEOUT_MS = 10_000;
+const MQTT_INBOUND_STALE_MS = 45_000;
+
+function getMqttInboundStaleMs() {
+    const testMs = Number(window.__PP_TEST_MQTT_INBOUND_STALE_MS);
+    if (Number.isFinite(testMs) && testMs > 0) {
+        return Math.floor(testMs);
+    }
+    return MQTT_INBOUND_STALE_MS;
+}
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
@@ -113,6 +122,19 @@ class SimpleMqttClient {
         this.pingTimer = null;
         this.connectTimer = null;
         this.failureNotified = false;
+        this.lastInboundAt = 0;
+    }
+
+    isInboundStale() {
+        if (!this.isSubscribed) return false;
+        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return true;
+        if (!this.lastInboundAt) return false;
+        return Date.now() - this.lastInboundAt > getMqttInboundStaleMs();
+    }
+
+    syncSocketState() {
+        if (!this.ws || this.ws.readyState === WebSocket.OPEN) return true;
+        return false;
     }
 
     connect() {
@@ -128,6 +150,7 @@ class SimpleMqttClient {
             this.sendRaw(buildConnectPacket(this.clientId));
         };
         ws.onmessage = (event) => {
+            this.lastInboundAt = Date.now();
             const bytes = new Uint8Array(event.data);
             this.buffer = concatBytes([this.buffer, bytes]);
             this.processFrames();
@@ -159,7 +182,7 @@ class SimpleMqttClient {
     }
 
     send(topic, textPayload) {
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN || !this.isSubscribed) {
+        if (!this.syncSocketState() || !this.isSubscribed || this.isInboundStale()) {
             throw new Error("MQTT relay is not open.");
         }
         this.sendRaw(buildPublishPacket(topic, textPayload));
@@ -211,6 +234,7 @@ class SimpleMqttClient {
 
         if (packetType === 9) {
             this.isSubscribed = true;
+            this.lastInboundAt = Date.now();
             this.clearConnectTimer();
             this.startPingLoop();
             if (typeof this.onOpen === "function") this.onOpen();
@@ -316,7 +340,21 @@ export function createMqttRelayChannel(role, roomId, localId, callbacks = {}) {
         close() {
             mqttClient.close();
         },
+        syncReadyState() {
+            if (mqttClient.syncSocketState() && !mqttClient.isInboundStale()) {
+                if (mqttClient.isSubscribed) channel.readyState = "open";
+                return;
+            }
+            channel.readyState = "closed";
+        },
+        isInboundStale() {
+            return mqttClient.isInboundStale();
+        },
         send(data) {
+            if (mqttClient.isInboundStale() || !mqttClient.syncSocketState()) {
+                channel.readyState = "closed";
+                throw new Error("MQTT relay is not open.");
+            }
             const payload = String(data || "");
             if (normalizedRole === "guest") {
                 const wrapped = JSON.stringify({ _from: localId, _d: payload });

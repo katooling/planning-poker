@@ -21,11 +21,16 @@ export const state = {
     hostPendingRejoinRequests: [],
     hostApprovedGuestIds: [],
     guestAutoRejoinEnabled: false,
+    guestConnectionPhase: "offline", // offline | connected | unstable | reconnecting
     guestJoinPin: "",
     connectionStrategy: "mqttQuickJoin",
     hostRequireApprovalFirstJoin: true,
     hostAutoApproveKnownRejoin: true,
-    hostRoomPin: ""
+    hostRoomPin: "",
+    guestJoinContext: null, // null | joinLink | guestConnect
+    guestJoinPhase: "form", // form | connecting | waitingApproval | entering
+    joinLinkRoomCode: "",
+    joinLinkSubtext: ""
 };
 
 export function createShortId() {

@@ -22,21 +22,48 @@
         <main>
             <section id="homeView" class="view active" data-testid="view-home">
                 <div class="stack-lg">
-                    <div>
-                        <div class="panel-heading">Start Session</div>
-                        <div class="panel-note">Enter your display name, then create a room or join one.</div>
+                    <div id="homeHeadingBlock">
+                        <div id="homeDefaultHeading">
+                            <div class="panel-heading">Start Session</div>
+                            <div class="panel-note">Enter your display name, then create a room or join one.</div>
+                        </div>
+                        <div id="joinLinkHeading" class="join-link-only" hidden>
+                            <div class="panel-heading">Join Session</div>
+                            <div class="panel-note">You were invited to a room. Enter your name to join.</div>
+                        </div>
                     </div>
 
-                    <div class="stack">
-                        <label class="field-label" for="displayNameInput">Display Name</label>
-                        <input id="displayNameInput" data-testid="input-display-name" type="text" maxlength="40" placeholder="Your name">
+                    <div id="joinLinkFormBlock" class="stack" data-testid="join-link-form">
+                        <div class="stack">
+                            <label class="field-label" for="displayNameInput">Display Name</label>
+                            <input id="displayNameInput" data-testid="input-display-name" type="text" maxlength="40" placeholder="Your name">
+                        </div>
+
+                        <div id="joinLinkPinField" class="stack join-link-only" hidden>
+                            <label class="field-label" for="joinLinkPinInput">Room PIN (if required)</label>
+                            <input id="joinLinkPinInput" data-testid="input-join-link-pin" type="text" placeholder="Enter room PIN">
+                        </div>
+
+                        <div id="homeDefaultActions" class="row">
+                            <button id="createRoomBtn" data-testid="btn-create-room" class="btn btn-primary">Create Room</button>
+                            <button id="joinRoomBtn" data-testid="btn-join-room" class="btn btn-secondary">Join Room</button>
+                        </div>
                     </div>
 
-                    <div class="row">
-                        <button id="createRoomBtn" data-testid="btn-create-room" class="btn btn-primary">Create Room</button>
-                        <button id="joinRoomBtn" data-testid="btn-join-room" class="btn btn-secondary">Join Room</button>
+                    <div id="joinLinkStatusPhase" class="join-link-status-panel" data-testid="join-link-status" hidden>
+                        <div class="join-link-status-card">
+                            <span class="join-link-spinner" aria-hidden="true"></span>
+                            <div id="joinLinkStatusTitle" class="panel-heading">Connecting to room…</div>
+                            <div id="joinLinkStatusBody" class="panel-note"></div>
+                            <div id="joinLinkRoomDisplay" class="code-display mono join-link-room-code"></div>
+                            <div id="joinLinkSubtext" class="subtle join-link-subtext"></div>
+                        </div>
+                        <div class="row">
+                            <button id="joinLinkCancelBtn" data-testid="btn-join-link-cancel" type="button" class="btn btn-secondary">Cancel</button>
+                        </div>
                     </div>
 
+                    <div id="joinLinkNotice" data-testid="notice-join-link" class="notice info"></div>
                     <div id="homeNotice" class="notice info"></div>
                 </div>
             </section>

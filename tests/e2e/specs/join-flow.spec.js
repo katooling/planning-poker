@@ -240,21 +240,21 @@ test("join link pre-fills room and auto-requests join", async ({ browser }) => {
     const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
     await guest.goto("/?room=" + encodeURIComponent(roomCode));
     await guest.locator("#displayNameInput").fill("GuestLink");
+    await expect(guest.locator("#joinLinkHeading")).toBeVisible();
+    await expect(guest.locator("#createRoomBtn")).toBeHidden();
     await guest.locator("#joinRoomBtn").click();
 
-    await expect(guest.locator("#guestRoomCodeInput")).toHaveValue(roomCode);
+    await expect(guest.locator("#guestConnectView.active")).toHaveCount(0);
+    await expect(guest.locator("#joinLinkStatusPhase")).toBeVisible();
     const pendingRow = host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestLink" }).first();
     const guestTable = guest.locator("#tableView.active");
-    const guestConnectView = guest.locator("#guestConnectView.active");
-    const guestConnectNotice = guest.locator("#guestConnectNotice");
+    const joinLinkStatus = guest.locator("#joinLinkStatusPhase");
     await expect.poll(
         async () => {
             const pendingVisible = await pendingRow.isVisible().catch(() => false);
             const tableVisible = await guestTable.isVisible().catch(() => false);
-            const waitingForApproval = await guestConnectNotice.textContent()
-                .then((text) => /Waiting for host approval|Requesting host approval/.test(String(text || "")))
-                .catch(() => false);
-            return pendingVisible || tableVisible || waitingForApproval;
+            const waitingOnLinkScreen = await joinLinkStatus.isVisible().catch(() => false);
+            return pendingVisible || tableVisible || waitingOnLinkScreen;
         },
         {
             timeout: 15_000,
@@ -264,8 +264,12 @@ test("join link pre-fills room and auto-requests join", async ({ browser }) => {
 
     const pendingVisible = await pendingRow.isVisible().catch(() => false);
     const tableVisible = await guestTable.isVisible().catch(() => false);
-    if (!pendingVisible && !tableVisible) {
-        await expect(guestConnectView).toBeVisible();
-        await expect(guestConnectNotice).toContainText(/Waiting for host approval|Requesting host approval/);
+    if (pendingVisible) {
+        await pendingRow.getByRole("button", { name: "Approve" }).click();
+        await expect(guestTable).toBeVisible({ timeout: 12_000 });
+        return;
+    }
+    if (!tableVisible) {
+        await expect(joinLinkStatus).toHaveAttribute("data-phase", /connecting|waitingApproval/);
     }
 });

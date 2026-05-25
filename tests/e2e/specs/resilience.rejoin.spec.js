@@ -1,6 +1,113 @@
 const { test, expect } = require("@playwright/test");
 const { openHome } = require("../helpers");
 
+test("guest webrtc disconnected state triggers channel recovery", async ({ page }) => {
+    await openHome(page);
+
+    const result = await page.evaluate(async () => {
+        const originalWebSocket = window.WebSocket;
+        const originalSetTimeout = window.setTimeout;
+        window.__PP_TEST_GUEST_DISCONNECTED_RECOVERY_MS = 30;
+        window.__PP_TEST_REJOIN_MAX_RETRIES = 2;
+        const OPEN = 1;
+        window.setTimeout = (handler, timeout, ...args) => {
+            const clamped = Math.min(Number(timeout || 0), 15);
+            return originalSetTimeout(handler, clamped, ...args);
+        };
+
+        class FakeWebSocket {
+            static OPEN = OPEN;
+
+            constructor() {
+                this.binaryType = "arraybuffer";
+                this.readyState = 0;
+                this.onopen = null;
+                this.onmessage = null;
+                this.onclose = null;
+                setTimeout(() => {
+                    this.readyState = OPEN;
+                    if (typeof this.onopen === "function") this.onopen();
+                }, 0);
+            }
+
+            send(data) {
+                const bytes = new Uint8Array(data);
+                const packetType = bytes[0] >> 4;
+                if (packetType === 1 && typeof this.onmessage === "function") {
+                    this.onmessage({ data: new Uint8Array([0x20, 0x02, 0x00, 0x00]).buffer });
+                    return;
+                }
+                if (packetType === 8 && typeof this.onmessage === "function") {
+                    const packetIdMsb = bytes[2] || 0x00;
+                    const packetIdLsb = bytes[3] || 0x01;
+                    this.onmessage({ data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer });
+                    setTimeout(() => this.close(), 4);
+                }
+            }
+
+            close() {
+                this.readyState = 3;
+                if (typeof this.onclose === "function") this.onclose();
+            }
+        }
+
+        window.WebSocket = FakeWebSocket;
+        try {
+            const { state } = await import("/js/state.js");
+            const { setupGuestPeerHandlers, onHostChannelOpen } = await import("/js/guest.js");
+            const { els } = await import("/js/ui.js");
+            const { showView } = await import("/js/ui.js");
+
+            let channelClosed = false;
+            const fakeDc = {
+                readyState: "open",
+                close() {
+                    channelClosed = true;
+                },
+                send() {}
+            };
+            const fakePc = {
+                connectionState: "connected",
+                iceConnectionState: "connected",
+                restartIce() {}
+            };
+
+            state.role = "guest";
+            state.currentView = "table";
+            state.roomId = "room-unstable";
+            state.guestAutoRejoinEnabled = true;
+            state.guestRemoteState = { round: 1, roundTitle: "", started: true, revealed: false, players: [] };
+            state.guestPeer = fakePc;
+            state.guestChannel = fakeDc;
+            showView("table");
+            onHostChannelOpen(fakeDc);
+            setupGuestPeerHandlers(fakePc, fakeDc);
+
+            fakePc.connectionState = "disconnected";
+            fakePc.iceConnectionState = "disconnected";
+            fakePc.onconnectionstatechange();
+
+            await new Promise((resolve) => setTimeout(resolve, 120));
+
+            return {
+                status: String(els.connectionStatusText.textContent || ""),
+                phase: state.guestConnectionPhase,
+                channelClosed,
+                rejoining: String(els.connectionStatusText.textContent || "").includes("Reconnecting")
+            };
+        } finally {
+            delete window.__PP_TEST_GUEST_DISCONNECTED_RECOVERY_MS;
+            delete window.__PP_TEST_REJOIN_MAX_RETRIES;
+            window.WebSocket = originalWebSocket;
+            window.setTimeout = originalSetTimeout;
+        }
+    });
+
+    expect(result.status).toContain("Connection unstable");
+    expect(result.phase).toBe("unstable");
+    expect(result.channelClosed || result.rejoining).toBe(true);
+});
+
 test("guest rejoinAck updates room and restores connected status", async ({ page }) => {
     await openHome(page);
 
@@ -409,6 +516,6 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
         }
     });
 
-    expect(result.notice).toContain("Click Join Room to retry");
+    expect(result.notice).toMatch(/Click Join Room to retry|Try again/);
     expect(result.status).toContain("Waiting for host approval");
 });

@@ -279,6 +279,7 @@ export function shutdownGuest(noticeMessage) {
     els.copyGuestJoinCodeFormattedBtn.disabled = true;
     els.connectGuestBtn.disabled = false;
     if (state.role === "guest") state.role = "idle";
+    state.guestConnectionPhase = "offline";
     updateConnectionStatus(false, "Not connected");
     if (noticeMessage) showNotice(els.homeNotice, noticeMessage, "info");
     log.info("guest", "Guest session shutdown");
