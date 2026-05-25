@@ -727,9 +727,47 @@ textarea.code-box {
     margin-bottom: 12px;
 }
 
-.pending-rejoin-panel {
-    display: none;
-    margin-top: 12px;
+#hostRoomAccessPanel > #hostLobbyNotice {
+    margin-bottom: 4px;
+}
+
+#hostRoomAccessPanel > #hostLobbyNotice.visible {
+    margin-bottom: 8px;
+}
+
+.pending-rejoin-banner {
+    display: grid;
+    gap: 10px;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    background: var(--surface-warning);
+    border: 1px solid #f0d9a8;
+    border-left: 4px solid var(--warning);
+    color: var(--text-warning-strong);
+}
+
+.pending-rejoin-banner[hidden] {
+    display: none !important;
+}
+
+.pending-rejoin-banner-title {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.pending-rejoin-banner-list {
+    gap: 8px;
+}
+
+.pending-rejoin-row {
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid #f0d9a8;
+}
+
+.pending-rejoin-guest {
+    font-weight: 600;
 }
 
 .host-round-title-input {

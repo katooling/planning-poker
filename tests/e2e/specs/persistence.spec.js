@@ -145,7 +145,7 @@ test("host can approve and reject unknown guest rejoin requests", async ({ page 
         renderHostLobby();
     });
 
-    await expect(page.locator("#hostPendingRejoinPanel")).toBeVisible();
+    await expect(page.getByTestId("banner-pending-rejoin")).toBeVisible();
     await expect(page.locator("#hostPendingRejoinList")).toContainText("Unknown One");
     await expect(page.locator("#hostPendingRejoinList")).toContainText("Unknown Two");
 

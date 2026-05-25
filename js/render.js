@@ -42,19 +42,27 @@ export function renderHostLobby() {
     const pending = Array.isArray(state.hostPendingRejoinRequests)
         ? state.hostPendingRejoinRequests
         : [];
-    if (els.hostPendingRejoinPanel && els.hostPendingRejoinList) {
-        els.hostPendingRejoinPanel.style.display = pending.length ? "block" : "none";
-        els.hostPendingRejoinList.innerHTML = pending.map((request) => {
-            const safeId = escapeHtml(request.id);
-            const safeName = escapeHtml(request.name || "Guest");
-            return `<div class="row-between">
-                <div class="subtle">${safeName}</div>
+    if (els.hostPendingRejoinBanner && els.hostPendingRejoinList) {
+        const hasPending = pending.length > 0;
+        els.hostPendingRejoinBanner.hidden = !hasPending;
+        if (els.hostPendingRejoinBannerTitle) {
+            els.hostPendingRejoinBannerTitle.textContent = hasPending
+                ? (pending.length === 1 ? "Guest waiting to rejoin" : "Guests waiting to rejoin")
+                : "";
+        }
+        els.hostPendingRejoinList.innerHTML = hasPending
+            ? pending.map((request) => {
+                const safeId = escapeHtml(request.id);
+                const safeName = escapeHtml(request.name || "Guest");
+                return `<div class="row-between pending-rejoin-row">
+                <div class="pending-rejoin-guest">${safeName}</div>
                 <div class="row">
-                    <button class="btn btn-secondary" data-approve-rejoin="${safeId}">Approve</button>
-                    <button class="btn btn-secondary" data-reject-rejoin="${safeId}">Reject</button>
+                    <button class="btn btn-primary btn-small" data-approve-rejoin="${safeId}">Approve</button>
+                    <button class="btn btn-secondary btn-small" data-reject-rejoin="${safeId}">Reject</button>
                 </div>
             </div>`;
-        }).join("");
+            }).join("")
+            : "";
     }
 
     if (els.hostRoomCode) {
