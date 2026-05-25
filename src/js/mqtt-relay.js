@@ -332,6 +332,14 @@ function getGuestInboundTopic(roomId, guestId) {
     return topics.guestInboundRoot + "/" + safeGuestId;
 }
 
+export {
+    encodeRemainingLength,
+    decodeRemainingLength,
+    encodeString,
+    buildPacket,
+    parsePublishPayload
+};
+
 export function createMqttRelayChannel(role, roomId, localId, callbacks = {}) {
     const normalizedRole = role === "host" ? "host" : "guest";
     const topics = getTopics(roomId);

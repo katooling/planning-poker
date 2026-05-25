@@ -324,6 +324,13 @@ export function loadSessionSnapshot() {
     }
 }
 
+export {
+    normalizeRoleView,
+    normalizeVote,
+    normalizeId,
+    normalizeLoadedSnapshot
+};
+
 export function clearSessionSnapshot() {
     const storage = getSessionStorage();
     if (!storage) return;

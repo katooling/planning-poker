@@ -8,7 +8,12 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "npm run test:e2e",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
@@ -28,9 +33,12 @@
   },
   "homepage": "https://github.com/katooling/planning-poker#readme",
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/vite": "^4.3.0",
     "tailwindcss": "^4.3.0",
-    "vite": "^6.3.5"
+    "typescript": "^6.0.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.7"
   }
 }
