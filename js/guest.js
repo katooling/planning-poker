@@ -1,4 +1,4 @@
-import { DISPLAY_NAME_TAKEN_CODE } from "./display-name-collision.js";
+import { DISPLAY_NAME_TAKEN_CODE, DISPLAY_NAME_TAKEN_REASON } from "./display-name-collision.js";
 import { state } from "./state.js";
 import { log } from "./log.js";
 import { decodeSignalCode, encodeSignalCode, validateSignalPayload } from "./signaling.js";
@@ -13,7 +13,7 @@ import {
     waitForIceComplete
 } from "./webrtc.js";
 import { els, setGuestStep, setSignalCodeDisplay, showNotice, showView, updateConnectionStatus } from "./ui.js";
-import { getGuestConnectionPresentation } from "./guest-connection-status.js";
+import { canGuestSendToHost, getGuestConnectionPresentation } from "./guest-connection-status.js";
 import {
     clearJoinLinkContext,
     isJoinLinkContext,
@@ -24,6 +24,11 @@ import { createMqttRelayChannel } from "./mqtt-relay.js";
 import { clearSessionSnapshot, saveSessionSnapshot } from "./persistence.js";
 import { sendJson } from "./messaging.js";
 import { EMPTY_GUEST_JOIN_CODE_DISPLAY } from "./signal-display-presets.js";
+import {
+    getAuthoritativeDisplayName,
+    persistDisplayName,
+    sanitizeDisplayName
+} from "./display-name.js";
 
 const RELAY_FALLBACK_DELAY_MS = 2500;
 const REJOIN_ACK_TIMEOUT_MS = 4500;
@@ -44,6 +49,7 @@ let guestJoinRetryTimer = null;
 let guestJoinRetryAttempts = 0;
 let guestAutoRejoinAttemptId = 0;
 let guestQuickJoinAttemptId = 0;
+let guestAcceptedDisplayName = "";
 
 function getGuestRejoinMaxRetries() {
     const testLimit = Number(window.__PP_TEST_REJOIN_MAX_RETRIES);
@@ -457,6 +463,7 @@ function enterGuestTable(channel) {
     updateConnectionStatus(presentation.online, presentation.text);
     setGuestStep(3);
     sendJson(channel, { t: "name", n: state.displayName });
+    noteGuestAcceptedDisplayName(state.displayName);
     if (state.selectedVote != null) {
         sendJson(channel, { t: "vote", v: state.selectedVote });
     }
@@ -1088,6 +1095,18 @@ export function handleGuestInboundMessage(rawData, channel) {
         return;
     }
 
+    if (message.t === "nameReject") {
+        if (message.to && message.to !== state.localId) return;
+        const rejectReason = typeof message.reason === "string" && message.reason.trim()
+            ? message.reason.trim()
+            : DISPLAY_NAME_TAKEN_REASON;
+        revertGuestDisplayNameToAccepted();
+        const noticeTarget = state.currentView === "table" ? els.tableNotice : els.guestConnectNotice;
+        showNotice(noticeTarget, rejectReason, "error");
+        saveSessionSnapshot();
+        return;
+    }
+
     if (message.t === "state") {
         state.guestRemoteState = {
             round: message.round || 1,
@@ -1096,6 +1115,7 @@ export function handleGuestInboundMessage(rawData, channel) {
             revealed: !!message.revealed,
             players: Array.isArray(message.players) ? message.players : []
         };
+        syncGuestDisplayNameFromRoster();
         if (state.guestRemoteState.started && state.currentView !== "table") {
             showView("table");
         }
@@ -1144,6 +1164,58 @@ export function handleGuestInboundMessage(rawData, channel) {
         renderTable();
         saveSessionSnapshot();
     }
+}
+
+export function submitGuestDisplayNameRename(displayName) {
+    const name = sanitizeDisplayName(displayName);
+    if (!name) {
+        return { submitted: false, reason: "empty" };
+    }
+
+    if (!canGuestSendToHost()) {
+        state.displayName = name;
+        persistDisplayName(name);
+        return { submitted: false, localOnly: true };
+    }
+
+    const acceptedName = sanitizeDisplayName(guestAcceptedDisplayName || getAuthoritativeDisplayName(state));
+    if (name === acceptedName) {
+        return { submitted: false, unchanged: true };
+    }
+
+    state.displayName = name;
+    sendJson(state.guestChannel, { t: "name", n: name });
+    saveSessionSnapshot();
+    return { submitted: true };
+}
+
+function noteGuestAcceptedDisplayName(name) {
+    const normalized = sanitizeDisplayName(name);
+    if (!normalized) return;
+    guestAcceptedDisplayName = normalized;
+}
+
+function revertGuestDisplayNameToAccepted() {
+    const fallback = sanitizeDisplayName(guestAcceptedDisplayName || getAuthoritativeDisplayName(state));
+    if (!fallback) return;
+    state.displayName = fallback;
+    if (els.displayNameInput) {
+        els.displayNameInput.value = fallback;
+    }
+    persistDisplayName(fallback);
+}
+
+function syncGuestDisplayNameFromRoster() {
+    if (state.role !== "guest" || !state.guestRemoteState) return;
+    const name = getAuthoritativeDisplayName(state);
+    if (!name) return;
+    noteGuestAcceptedDisplayName(name);
+    if (name === state.displayName && els.displayNameInput?.value === name) return;
+    state.displayName = name;
+    if (els.displayNameInput) {
+        els.displayNameInput.value = name;
+    }
+    persistDisplayName(name);
 }
 
 export { sendJson } from "./messaging.js";

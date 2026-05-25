@@ -81,8 +81,24 @@ Tells the guest the name is already in use, to pick another name, and that the h
 _Avoid_: PIN error copy, generic join failed
 
 **Join-time name gate**:
-Session-unique display names are enforced only when a guest attempts relay join, not on later in-session actions (rename is separate work).
+Session-unique display names are enforced only when a guest attempts relay join, not on in-session rename.
 _Avoid_: Join validation, name check on connect
+
+**In-session rename**:
+A connected host or guest may change display name from the header field; the host applies the same taken-name rules as join (connected + pending roster, own-guest exemption, host name reserved for others).
+_Avoid_: Profile edit, change username
+
+**Rename rejection message**:
+When a rename collides, the host sends `nameReject` with the same `displayNameTaken` code as join; the guest reverts the header field to the last accepted roster name.
+_Avoid_: Rename failed, name update error
+
+**Authoritative display name**:
+The name in host roster or guest `state` sync — not draft text in the header while editing. Header input persists to storage only before a session or after a successful rename commit.
+_Avoid_: Draft name, in-progress profile
+
+**Display name evaluation**:
+Shared `evaluateDisplayNameChange` applies session-unique rules for join-time rename requests (`name` message) and host self-rename; presence cannot apply a taken name.
+_Avoid_: Rename validator, name check helper
 
 **Terminal collision rejection**:
 A name-collision reject does not trigger guest auto-rejoin or join retries; the guest must change name and submit again.

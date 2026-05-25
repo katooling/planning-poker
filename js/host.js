@@ -1,5 +1,6 @@
 export { configureHost } from "./host-shared.js";
 export {
+    applyHostDisplayNameRename,
     broadcastMessageToGuests,
     broadcastState,
     onHostNewRound,

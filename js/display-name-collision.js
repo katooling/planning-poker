@@ -2,6 +2,28 @@ export const DISPLAY_NAME_TAKEN_CODE = "displayNameTaken";
 export const DISPLAY_NAME_TAKEN_REASON =
     "That name is already in use. Pick another name, or ask the host to remove the other guest first.";
 
+export function evaluateDisplayNameChange(sessionState, actorId, rawName, sanitizeName, getCurrentName) {
+    const name = sanitizeName(rawName);
+    if (!name) {
+        return { ok: false, reason: "empty" };
+    }
+
+    const currentName = sanitizeName(getCurrentName(sessionState, actorId));
+    if (name === currentName) {
+        return { ok: true, name, unchanged: true };
+    }
+
+    if (isDisplayNameTaken(sessionState, actorId, name, sanitizeName)) {
+        return {
+            ok: false,
+            reason: DISPLAY_NAME_TAKEN_REASON,
+            code: DISPLAY_NAME_TAKEN_CODE
+        };
+    }
+
+    return { ok: true, name };
+}
+
 export function isDisplayNameTaken(sessionState, guestId, guestName, sanitizeName) {
     if (!sessionState.session) return false;
 
@@ -33,9 +55,11 @@ export function isDisplayNameTaken(sessionState, guestId, guestName, sanitizeNam
     return false;
 }
 
-export function sendDisplayNameTakenReject(sendJson, relayChannel, guestId) {
-    sendJson(relayChannel, {
-        t: "rejoinReject",
+export function sendDisplayNameTakenReject(sendJson, channel, guestId, options = {}) {
+    if (!channel) return;
+    const forRename = !!options.forRename;
+    sendJson(channel, {
+        t: forRename ? "nameReject" : "rejoinReject",
         to: guestId,
         code: DISPLAY_NAME_TAKEN_CODE,
         reason: DISPLAY_NAME_TAKEN_REASON

@@ -284,20 +284,28 @@ textarea.code-box {
     font-weight: 600;
 }
 
-.current-user-badge {
-    font-size: 12px;
-    padding: 6px 10px;
-    border-radius: 999px;
-    background: var(--surface-secondary);
-    color: var(--muted);
-    white-space: nowrap;
-    max-width: 260px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.title-bar-actions {
+    align-items: flex-end;
+    gap: 10px;
 }
 
-.current-user-badge.empty {
-    display: none;
+.title-bar-name-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.title-bar-name-field .field-label {
+    font-size: 11px;
+    margin: 0;
+}
+
+.title-bar-name-field #displayNameInput {
+    width: min(220px, 36vw);
+    min-width: 120px;
+    padding: 6px 10px;
+    font-size: 14px;
 }
 
 .status {

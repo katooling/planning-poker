@@ -5,9 +5,39 @@ import { els, setSignalCodeDisplay, showNotice, showView } from "./ui.js";
 import { getHostPlayersAsArray, upsertHostPlayer } from "./game.js";
 import { renderHostLobby, renderTable } from "./render.js";
 import { saveSessionSnapshot } from "./persistence.js";
+import { evaluateDisplayNameChange } from "./display-name-collision.js";
 import { ROUND_TITLE_MAX_LENGTH, sanitizeHostName } from "./host-shared.js";
 import { sendJson } from "./messaging.js";
 import { EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
+
+export function applyHostDisplayNameRename(displayName) {
+    if (state.role !== "host" || !state.session) {
+        return { applied: false };
+    }
+
+    const evaluation = evaluateDisplayNameChange(
+        state,
+        state.localId,
+        displayName,
+        sanitizeHostName,
+        (sessionState, actorId) => sessionState.session.players[actorId]?.name || sessionState.displayName || ""
+    );
+    if (!evaluation.ok) {
+        return { applied: false, reason: evaluation.reason || "empty" };
+    }
+    if (evaluation.unchanged) {
+        state.displayName = evaluation.name;
+        return { applied: true, name: evaluation.name, unchanged: true };
+    }
+
+    state.displayName = evaluation.name;
+    upsertHostPlayer(state.localId, evaluation.name, true, sanitizeHostName);
+    broadcastState();
+    renderHostLobby();
+    renderTable();
+    saveSessionSnapshot();
+    return { applied: true, name: evaluation.name };
+}
 
 export function startHostSession(displayName) {
     shutdownGuest();

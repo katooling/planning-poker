@@ -1,4 +1,4 @@
-import { state, STORAGE_NAME_KEY } from "./state.js";
+import { state } from "./state.js";
 import { log } from "./log.js";
 import {
     DEFAULT_STUN_SERVERS,
@@ -16,8 +16,7 @@ import {
     setTableViewHandler,
     showNotice,
     showView,
-    updateConnectionStatus,
-    updateCurrentUserBadge
+    updateConnectionStatus
 } from "./ui.js";
 import { getActiveStrategy } from "./connection-strategies/index.js";
 import { loadConnectionSettings, saveConnectionSettings } from "./connection-settings.js";
@@ -37,6 +36,7 @@ import {
 } from "./join-link.js";
 import { setLocalVote } from "./game.js";
 import {
+    applyHostDisplayNameRename,
     configureHost,
     broadcastState,
     onAcceptGuestCode,
@@ -58,12 +58,21 @@ import {
     onRegenerateGuestOffer,
     sendJson as guestSendJson,
     startGuestSession,
+    submitGuestDisplayNameRename,
     triggerGuestAutoRejoin
 } from "./guest.js";
 import { shutdownGuest, shutdownHost } from "./webrtc.js";
 import { clearSessionSnapshot, loadSessionSnapshot, saveSessionSnapshot } from "./persistence.js";
 import { EMPTY_GUEST_JOIN_CODE_DISPLAY, EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
 import { sanitizeText } from "./sanitize.js";
+import { DISPLAY_NAME_TAKEN_REASON } from "./display-name-collision.js";
+import {
+    getAuthoritativeDisplayName,
+    isInDisplayNameSession,
+    loadPersistedDisplayName,
+    persistDisplayName,
+    sanitizeDisplayName
+} from "./display-name.js";
 
 init();
 
@@ -72,9 +81,8 @@ function init() {
     state.connectionStrategy = connectionSettings.strategy;
     state.hostRequireApprovalFirstJoin = connectionSettings.hostRequireApprovalFirstJoin;
     state.hostAutoApproveKnownRejoin = connectionSettings.hostAutoApproveKnownRejoin;
-    state.displayName = loadStoredDisplayName();
+    state.displayName = loadPersistedDisplayName();
     els.displayNameInput.value = state.displayName;
-    updateCurrentUserBadge(state.displayName);
     configureHost({ sanitizeName });
     setTableViewHandler(renderTable);
     setVoteSelectHandler((vote) => {
@@ -257,12 +265,78 @@ function createVoteDeps() {
 
 function wireProfileAndLifecycleEvents() {
     els.displayNameInput.addEventListener("input", () => {
+        if (isInDisplayNameSession(state)) return;
         state.displayName = sanitizeName(els.displayNameInput.value);
-        storeDisplayName(state.displayName);
-        updateCurrentUserBadge(state.displayName);
+        persistDisplayName(state.displayName);
         saveSessionSnapshot();
     });
+    els.displayNameInput.addEventListener("change", () => {
+        commitDisplayNameChange();
+    });
     window.addEventListener("pagehide", onPageHide);
+}
+
+function commitDisplayNameChange() {
+    const name = sanitizeName(els.displayNameInput.value || "");
+    if (!name) {
+        restoreDisplayNameField();
+        showDisplayNameNotice("Please enter your display name.", "warn");
+        els.displayNameInput.focus();
+        return;
+    }
+
+    state.displayName = name;
+    els.displayNameInput.value = name;
+
+    if (state.role === "host" && state.session) {
+        const result = applyHostDisplayNameRename(name);
+        if (!result.applied) {
+            restoreDisplayNameField();
+            showDisplayNameNotice(result.reason || DISPLAY_NAME_TAKEN_REASON, "error");
+            return;
+        }
+        return;
+    }
+
+    if (state.role === "guest" && canGuestSendToHost()) {
+        const result = submitGuestDisplayNameRename(name);
+        if (result.reason === "empty") {
+            restoreDisplayNameField();
+            showDisplayNameNotice("Please enter your display name.", "warn");
+            return;
+        }
+        return;
+    }
+
+    persistDisplayName(name);
+    saveSessionSnapshot();
+}
+
+function restoreDisplayNameField() {
+    const fallback = getAuthoritativeDisplayName(state);
+    els.displayNameInput.value = fallback;
+    state.displayName = fallback;
+    persistDisplayName(fallback);
+}
+
+function showDisplayNameNotice(text, type, timeoutMs) {
+    if (state.currentView === "table") {
+        showNotice(els.tableNotice, text, type, timeoutMs);
+        return;
+    }
+    if (state.currentView === "hostLobby") {
+        showNotice(els.hostLobbyNotice, text, type, timeoutMs);
+        return;
+    }
+    if (state.currentView === "guestConnect") {
+        showNotice(els.guestConnectNotice, text, type, timeoutMs);
+        return;
+    }
+    if (state.guestJoinContext === "joinLink") {
+        showNotice(els.joinLinkNotice, text, type, timeoutMs);
+        return;
+    }
+    showNotice(els.homeNotice, text, type, timeoutMs);
 }
 
 function wireSettingsEvents() {
@@ -483,9 +557,8 @@ function ensureDisplayName() {
         return "";
     }
     state.displayName = name;
-    storeDisplayName(name);
+    persistDisplayName(name);
     els.displayNameInput.value = name;
-    updateCurrentUserBadge(name);
     return name;
 }
 
@@ -499,7 +572,6 @@ function restoreSessionFromSnapshot(snapshot) {
     if (snapshot.displayName) {
         state.displayName = snapshot.displayName;
         els.displayNameInput.value = snapshot.displayName;
-        updateCurrentUserBadge(snapshot.displayName);
     }
 
     if (snapshot.role === "host") {
@@ -621,22 +693,14 @@ function isGuestConnected() {
 }
 
 export function sanitizeName(name) {
-    return sanitizeText(name, 40);
+    return sanitizeDisplayName(name);
 }
 
 export function storeDisplayName(name) {
-    try {
-        localStorage.setItem(STORAGE_NAME_KEY, name);
-    } catch (_error) {
-        // Storage can fail in private mode.
-    }
+    persistDisplayName(name);
 }
 
 export function loadStoredDisplayName() {
-    try {
-        return sanitizeName(localStorage.getItem(STORAGE_NAME_KEY) || "");
-    } catch (_error) {
-        return "";
-    }
+    return loadPersistedDisplayName();
 }
 

@@ -79,5 +79,4 @@ test("display name is sanitized and restored after reload", async ({ page }) => 
     const restored = await page.locator("#displayNameInput").inputValue();
     expect(restored).toBe("Alice Bob Carol With");
     expect(restored.length).toBeLessThanOrEqual(40);
-    await expect(page.locator("#currentUserBadge")).toContainText("You: Alice Bob Carol With");
 });

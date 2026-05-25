@@ -7,6 +7,8 @@ import { createMqttRelayChannel } from "./mqtt-relay.js";
 import { saveSessionSnapshot } from "./persistence.js";
 import { closePeerEntry } from "./webrtc.js";
 import {
+    DISPLAY_NAME_TAKEN_CODE,
+    evaluateDisplayNameChange,
     isDisplayNameTaken,
     sendDisplayNameTakenReject
 } from "./display-name-collision.js";
@@ -259,10 +261,10 @@ export function handleHostInboundMessage(guestId, rawData) {
     log.info("game", "Message received", { from: guestId, type: message.t || "unknown" });
 
     if (message.t === "name") {
-        const newName = sanitizeHostName(message.n || "Guest");
         const peer = state.hostPeers.get(guestId);
-        if (peer) peer.name = newName;
-        upsertHostPlayer(guestId, newName, true, sanitizeHostName);
+        if (!applyGuestDisplayName(guestId, message.n, peer ? peer.dc : null)) {
+            return;
+        }
         broadcastState();
         renderHostLobby();
         renderTable();
@@ -278,13 +280,26 @@ export function handleHostInboundMessage(guestId, rawData) {
 
     if (message.t === "presence") {
         const peer = state.hostPeers.get(guestId);
-        const nextName = sanitizeHostName(message.n || (peer ? peer.name : getKnownGuestName(guestId)));
+        const currentName = sanitizeHostName(getKnownGuestName(guestId));
+        const requestedName = sanitizeHostName(message.n || currentName);
+        let nextName = currentName;
+        if (requestedName !== currentName) {
+            const evaluation = evaluateDisplayNameChange(
+                state,
+                guestId,
+                requestedName,
+                sanitizeHostName,
+                (_sessionState, id) => getKnownGuestName(id)
+            );
+            if (evaluation.ok) {
+                nextName = evaluation.name;
+            }
+        }
         let changed = false;
         if (peer && peer.name !== nextName) {
             peer.name = nextName;
             changed = true;
         }
-        const player = state.session.players[guestId];
         const wasConnected = !!(player && player.connected);
         const previousName = player ? player.name : null;
         upsertHostPlayer(guestId, nextName, true, sanitizeHostName);
@@ -442,6 +457,30 @@ function getKnownGuestName(guestId) {
         return "Guest";
     }
     return state.session.players[guestId].name || "Guest";
+}
+
+function applyGuestDisplayName(guestId, rawName, replyChannel) {
+    const evaluation = evaluateDisplayNameChange(
+        state,
+        guestId,
+        rawName || "Guest",
+        sanitizeHostName,
+        (_sessionState, id) => getKnownGuestName(id)
+    );
+    if (!evaluation.ok) {
+        if (evaluation.code === DISPLAY_NAME_TAKEN_CODE) {
+            sendDisplayNameTakenReject(sendJson, replyChannel, guestId, { forRename: true });
+        }
+        return false;
+    }
+    if (evaluation.unchanged) {
+        return true;
+    }
+
+    const peer = state.hostPeers.get(guestId);
+    if (peer) peer.name = evaluation.name;
+    upsertHostPlayer(guestId, evaluation.name, true, sanitizeHostName);
+    return true;
 }
 
 function isKnownGuestId(guestId) {

@@ -13,8 +13,11 @@
                 <h1>Planning Poker</h1>
                 <div class="subtle">Zero-server planning poker with MQTT quick join</div>
             </div>
-            <div class="row">
-                <span id="currentUserBadge" class="current-user-badge" aria-live="polite"></span>
+            <div class="row title-bar-actions">
+                <div class="title-bar-name-field">
+                    <label class="field-label" for="displayNameInput">Display name</label>
+                    <input id="displayNameInput" data-testid="input-display-name" type="text" maxlength="40" placeholder="Your name" aria-label="Display name">
+                </div>
                 <button id="iceSettingsBtn" class="btn btn-secondary btn-icon" title="Connection settings">Connection Settings</button>
             </div>
         </div>
@@ -25,20 +28,15 @@
                     <div id="homeHeadingBlock">
                         <div id="homeDefaultHeading">
                             <div class="panel-heading">Start Session</div>
-                            <div class="panel-note">Enter your display name, then create a room or join one.</div>
+                            <div class="panel-note">Set your display name in the header, then create a room or join one.</div>
                         </div>
                         <div id="joinLinkHeading" class="join-link-only" hidden>
                             <div class="panel-heading">Join Session</div>
-                            <div class="panel-note">You were invited to a room. Enter your name to join.</div>
+                            <div class="panel-note">You were invited to a room. Set your display name in the header to join.</div>
                         </div>
                     </div>
 
                     <div id="joinLinkFormBlock" class="stack" data-testid="join-link-form">
-                        <div class="stack">
-                            <label class="field-label" for="displayNameInput">Display Name</label>
-                            <input id="displayNameInput" data-testid="input-display-name" type="text" maxlength="40" placeholder="Your name">
-                        </div>
-
                         <div id="joinLinkPinField" class="stack join-link-only" hidden>
                             <label class="field-label" for="joinLinkPinInput">Room PIN (if required)</label>
                             <input id="joinLinkPinInput" data-testid="input-join-link-pin" type="text" placeholder="Enter room PIN">
