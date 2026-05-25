@@ -4,7 +4,7 @@ import {
     decodeRemainingLength,
     encodeRemainingLength,
     encodeString,
-    parsePublishPayload
+    parsePublishPayload,
 } from "../../src/js/mqtt-relay.js";
 
 describe("mqtt packet helpers", () => {

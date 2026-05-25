@@ -1,8 +1,8 @@
-import { state } from "./state.js";
-import { shutdownGuest } from "./webrtc.js";
-import { els, showNotice, showView } from "./ui.js";
-import { renderConnectionStrategySections, renderJoinLinkHome } from "./render.js";
 import { clearSessionSnapshot } from "./persistence.js";
+import { renderConnectionStrategySections, renderJoinLinkHome } from "./render.js";
+import { state } from "./state.js";
+import { els, showNotice, showView } from "./ui.js";
+import { shutdownGuest } from "./webrtc.js";
 
 export function getRoomCodeFromUrl() {
     try {
@@ -48,7 +48,7 @@ export function routeGuestJoinFeedback({
     phase,
     subtext,
     escalate = false,
-    focusPin = false
+    focusPin = false,
 }) {
     if (escalate) {
         escalateToGuestConnect({ message, type, focusPin });
@@ -112,7 +112,7 @@ export function getJoinLinkConnectParams() {
     }
     return {
         roomCode,
-        pin: readJoinLinkPin()
+        pin: readJoinLinkPin(),
     };
 }
 
@@ -122,7 +122,7 @@ export function showJoinLinkConnectingUi() {
     routeGuestJoinFeedback({
         message: "Connecting to room…",
         type: "info",
-        phase: "connecting"
+        phase: "connecting",
     });
 }
 

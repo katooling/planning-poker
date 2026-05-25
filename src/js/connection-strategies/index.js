@@ -4,7 +4,7 @@ import { mqttQuickJoinStrategy } from "./mqtt-quick-join.js";
 
 const STRATEGIES = new Map([
     [mqttQuickJoinStrategy.id, mqttQuickJoinStrategy],
-    [manualWebRtcStrategy.id, manualWebRtcStrategy]
+    [manualWebRtcStrategy.id, manualWebRtcStrategy],
 ]);
 
 export function getStrategyById(id) {
@@ -19,4 +19,3 @@ export function getActiveStrategy() {
 export function listStrategyIds() {
     return Array.from(STRATEGIES.keys());
 }
-

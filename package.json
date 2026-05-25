@@ -1,44 +1,44 @@
 {
-  "name": "planning-poker",
-  "version": "1.0.0",
-  "description": "Static planning-poker app with no backend and no serverless functions.",
-  "private": true,
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview",
-    "test": "npm run test:unit && npm run test:e2e",
-    "test:unit": "vitest run",
-    "test:unit:watch": "vitest",
-    "lint": "biome check .",
-    "format": "biome format --write .",
-    "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed",
-    "test:e2e:debug": "playwright test --debug",
-    "test:e2e:chromium": "playwright test --project=chromium",
-    "test:e2e:firefox": "playwright test --project=firefox",
-    "test:e2e:report": "playwright show-report"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/katooling/planning-poker.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/katooling/planning-poker/issues"
-  },
-  "homepage": "https://github.com/katooling/planning-poker#readme",
-  "devDependencies": {
-    "@biomejs/biome": "^2.4.15",
-    "@playwright/test": "^1.58.2",
-    "@tailwindcss/vite": "^4.3.0",
-    "tailwindcss": "^4.3.0",
-    "typescript": "^6.0.3",
-    "vite": "^6.3.5",
-    "vitest": "^4.1.7"
-  }
+    "name": "planning-poker",
+    "version": "1.0.0",
+    "description": "Static planning-poker app with no backend and no serverless functions.",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview",
+        "test": "npm run test:unit && npm run test:e2e",
+        "test:unit": "vitest run",
+        "test:unit:watch": "vitest",
+        "lint": "biome check .",
+        "format": "biome format --write .",
+        "typecheck": "tsc --noEmit",
+        "test:e2e": "playwright test",
+        "test:e2e:headed": "playwright test --headed",
+        "test:e2e:debug": "playwright test --debug",
+        "test:e2e:chromium": "playwright test --project=chromium",
+        "test:e2e:firefox": "playwright test --project=firefox",
+        "test:e2e:report": "playwright show-report"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/katooling/planning-poker.git"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/katooling/planning-poker/issues"
+    },
+    "homepage": "https://github.com/katooling/planning-poker#readme",
+    "devDependencies": {
+        "@biomejs/biome": "^2.4.15",
+        "@playwright/test": "^1.58.2",
+        "@tailwindcss/vite": "^4.3.0",
+        "tailwindcss": "^4.3.0",
+        "typescript": "^6.0.3",
+        "vite": "^6.3.5",
+        "vitest": "^4.1.7"
+    }
 }

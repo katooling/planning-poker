@@ -1,5 +1,11 @@
-import { test, expect } from "@playwright/test";
-import { createHost, openHome, readCode, setConnectionMode, setConnectionModeForPages } from "../helpers/index.js";
+import { expect, test } from "@playwright/test";
+import {
+    createHost,
+    openHome,
+    readCode,
+    setConnectionMode,
+    setConnectionModeForPages,
+} from "../helpers/index.js";
 
 function normalizeWhitespace(value) {
     return String(value || "").replace(/\s+/g, "");
@@ -42,8 +48,8 @@ test("guest copy plain and formatted buttons copy expected values", async ({ bro
             value: {
                 writeText: async (text) => {
                     window.__copiedTexts.push(String(text));
-                }
-            }
+                },
+            },
         });
     });
     const page = await context.newPage();
@@ -77,8 +83,8 @@ test("host copy plain and formatted response buttons copy expected values", asyn
             value: {
                 writeText: async (text) => {
                     window.__copiedTexts.push(String(text));
-                }
-            }
+                },
+            },
         });
     });
     const host = await context.newPage();

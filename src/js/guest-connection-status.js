@@ -9,18 +9,22 @@ export function getGuestConnectionPresentation() {
     }
     const channel = state.guestChannel;
     if (channel && channel.readyState === "open") {
-        if (channel.transportType === "mqtt-relay" && typeof channel.isInboundStale === "function" && channel.isInboundStale()) {
+        if (
+            channel.transportType === "mqtt-relay" &&
+            typeof channel.isInboundStale === "function" &&
+            channel.isInboundStale()
+        ) {
             return {
                 online: false,
                 text: "Connection unstable — recovering...",
-                canSend: false
+                canSend: false,
             };
         }
         if (state.guestConnectionPhase === "unstable") {
             return {
                 online: false,
                 text: "Connection unstable — recovering...",
-                canSend: true
+                canSend: true,
             };
         }
         return { online: true, text: "Connected to host", canSend: true };

@@ -1,3 +1,4 @@
+// @ts-nocheck
 let sanitizeNameFn = (name) => String(name || "").trim();
 
 export const RELAY_FALLBACK_DELAY_MS = 2500;

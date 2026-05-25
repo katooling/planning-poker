@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     EMPTY_GUEST_JOIN_CODE_DISPLAY,
-    EMPTY_HOST_RESPONSE_CODE_DISPLAY
+    EMPTY_HOST_RESPONSE_CODE_DISPLAY,
 } from "../../src/js/signal-display-presets.js";
 
 describe("signal-display-presets", () => {

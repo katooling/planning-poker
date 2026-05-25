@@ -5,7 +5,7 @@ describe("sdp compact round-trip", () => {
     it("round-trips modern compact payloads", () => {
         const original = {
             type: "offer",
-            sdp: "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"
+            sdp: "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n",
         };
         const compact = compactFromDescription(original);
         const restored = descriptionFromCompact(compact);
@@ -18,7 +18,7 @@ describe("sdp compact round-trip", () => {
             t: "offer",
             u: "abc",
             p: "def",
-            f: "AABBCCDDEEFF00112233445566778899AABBCCDDEEFF00112233445566778899"
+            f: "AABBCCDDEEFF00112233445566778899AABBCCDDEEFF00112233445566778899",
         };
         const restored = descriptionFromCompact(legacy);
         expect(restored.type).toBe("offer");

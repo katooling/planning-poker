@@ -21,10 +21,14 @@ export async function setConnectionPreferences(page, preferences = {}) {
         await page.locator("#connectionStrategySelect").selectOption(preferences.mode);
     }
     if (typeof preferences.hostRequireApprovalFirstJoin === "boolean") {
-        await page.locator("#hostRequireApprovalFirstJoinCheckbox").setChecked(preferences.hostRequireApprovalFirstJoin);
+        await page
+            .locator("#hostRequireApprovalFirstJoinCheckbox")
+            .setChecked(preferences.hostRequireApprovalFirstJoin);
     }
     if (typeof preferences.hostAutoApproveKnownRejoin === "boolean") {
-        await page.locator("#hostAutoApproveKnownRejoinCheckbox").setChecked(preferences.hostAutoApproveKnownRejoin);
+        await page
+            .locator("#hostAutoApproveKnownRejoinCheckbox")
+            .setChecked(preferences.hostAutoApproveKnownRejoin);
     }
 
     await saveConnectionSettings(page);

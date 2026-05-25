@@ -1,10 +1,10 @@
-import { describe, expect, it, beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     DEFAULT_STUN_SERVERS,
     formatIceServersForInput,
     getIceServers,
     parseIceServerInput,
-    saveUserIceServers
+    saveUserIceServers,
 } from "../../src/js/ice-config.js";
 
 describe("ice-config", () => {
@@ -16,27 +16,25 @@ describe("ice-config", () => {
             },
             setItem(key, value) {
                 this.store.set(key, value);
-            }
+            },
         });
     });
 
     it("parses pipe-delimited turn lines", () => {
-        const servers = parseIceServerInput(
-            "turn:example.com:3478?transport=tcp | alice | secret"
-        );
+        const servers = parseIceServerInput("turn:example.com:3478?transport=tcp | alice | secret");
         expect(servers).toEqual([
             {
                 urls: "turn:example.com:3478?transport=tcp",
                 username: "alice",
-                credential: "secret"
-            }
+                credential: "secret",
+            },
         ]);
     });
 
     it("formats servers for textarea input", () => {
         const text = formatIceServersForInput([
             { urls: "stun:stun.example.com:3478" },
-            { urls: "turn:turn.example.com", username: "u", credential: "p" }
+            { urls: "turn:turn.example.com", username: "u", credential: "p" },
         ]);
         expect(text).toContain("stun:stun.example.com:3478");
         expect(text).toContain("turn:turn.example.com | u | p");

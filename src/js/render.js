@@ -1,7 +1,13 @@
-import { VOTE_VALUES, state } from "./state.js";
-import { els, escapeHtml, updateConnectionStatus } from "./ui.js";
+// @ts-nocheck
+import {
+    getCurrentRevealFlag,
+    getHostPlayersAsArray,
+    getRenderablePlayersForUI,
+    renderStatsValues,
+} from "./game.js";
 import { getGuestConnectionPresentation } from "./guest-connection-status.js";
-import { getCurrentRevealFlag, getHostPlayersAsArray, getRenderablePlayersForUI, renderStatsValues } from "./game.js";
+import { state, VOTE_VALUES } from "./state.js";
+import { els, escapeHtml, updateConnectionStatus } from "./ui.js";
 
 let voteSelectHandler = null;
 
@@ -13,14 +19,15 @@ export function renderHostLobby() {
     if (!state.session) return;
     renderConnectionStrategySections();
     const players = getHostPlayersAsArray(true);
-    els.hostPlayerList.innerHTML = players.map((player) => {
-        const roleTag = player.isHost ? "Host" : "Guest";
-        const votedText = player.vote == null ? "Not voted" : "Voted";
-        const dotClass = player.connected ? "online" : "offline";
-        const kickButton = player.isHost
-            ? ""
-            : `<button class="btn btn-danger btn-small" data-kick-player="${escapeHtml(player.id)}">Kick</button>`;
-        return `<div class="player-row">
+    els.hostPlayerList.innerHTML = players
+        .map((player) => {
+            const roleTag = player.isHost ? "Host" : "Guest";
+            const votedText = player.vote == null ? "Not voted" : "Voted";
+            const dotClass = player.connected ? "online" : "offline";
+            const kickButton = player.isHost
+                ? ""
+                : `<button class="btn btn-danger btn-small" data-kick-player="${escapeHtml(player.id)}">Kick</button>`;
+            return `<div class="player-row">
             <div>
                 <div class="player-name">${escapeHtml(player.name)}</div>
                 <div class="player-meta">${roleTag} • ${votedText}</div>
@@ -30,7 +37,8 @@ export function renderHostLobby() {
                 ${kickButton}
             </div>
         </div>`;
-    }).join("");
+        })
+        .join("");
 
     const connectedCount = players.filter((p) => p.connected).length;
     const canStart = connectedCount >= 2;
@@ -44,28 +52,34 @@ export function renderHostLobby() {
         : [];
     if (els.hostPendingRejoinPanel && els.hostPendingRejoinList) {
         els.hostPendingRejoinPanel.style.display = pending.length ? "block" : "none";
-        els.hostPendingRejoinList.innerHTML = pending.map((request) => {
-            const safeId = escapeHtml(request.id);
-            const safeName = escapeHtml(request.name || "Guest");
-            return `<div class="flex flex-wrap items-center justify-between gap-3">
+        els.hostPendingRejoinList.innerHTML = pending
+            .map((request) => {
+                const safeId = escapeHtml(request.id);
+                const safeName = escapeHtml(request.name || "Guest");
+                return `<div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="text-sm text-muted">${safeName}</div>
                 <div class="flex flex-wrap items-center gap-2.5">
                     <button class="btn btn-secondary" data-approve-rejoin="${safeId}">Approve</button>
                     <button class="btn btn-secondary" data-reject-rejoin="${safeId}">Reject</button>
                 </div>
             </div>`;
-        }).join("");
+            })
+            .join("");
     }
 
     if (els.hostRoomCode) {
         const roomCode = String(state.roomId || state.localId || "");
         els.hostRoomCode.textContent = roomCode || "Not ready";
         const joinUrl = roomCode
-            ? (window.location.origin + window.location.pathname + "?room=" + encodeURIComponent(roomCode))
+            ? window.location.origin +
+              window.location.pathname +
+              "?room=" +
+              encodeURIComponent(roomCode)
             : "";
         if (els.hostRoomQrImage) {
             els.hostRoomQrImage.src = joinUrl
-                ? ("https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" + encodeURIComponent(joinUrl))
+                ? "https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=" +
+                  encodeURIComponent(joinUrl)
                 : "";
         }
     }
@@ -77,16 +91,16 @@ export function renderHostLobby() {
 const JOIN_LINK_STATUS_COPY = {
     connecting: {
         title: "Connecting to room…",
-        body: "Setting up a connection to the host."
+        body: "Setting up a connection to the host.",
     },
     waitingApproval: {
         title: "Waiting for the host to let you in",
-        body: "If nothing happens, ask the host to approve you in their lobby."
+        body: "If nothing happens, ask the host to approve you in their lobby.",
     },
     entering: {
         title: "You're in!",
-        body: "Entering the table…"
-    }
+        body: "Entering the table…",
+    },
 };
 
 export function renderJoinLinkHome() {
@@ -134,7 +148,7 @@ export function renderJoinLinkHome() {
     }
     if (els.joinLinkRoomDisplay) {
         const room = String(state.joinLinkRoomCode || state.roomId || "").trim();
-        els.joinLinkRoomDisplay.textContent = room ? ("Room " + room) : "";
+        els.joinLinkRoomDisplay.textContent = room ? "Room " + room : "";
     }
     if (els.joinLinkStatusTitle && els.joinLinkStatusBody) {
         const copy = JOIN_LINK_STATUS_COPY[phase] || JOIN_LINK_STATUS_COPY.connecting;
@@ -183,7 +197,11 @@ export function renderTable() {
 
     els.tableRoleChip.textContent = isHost ? "Host" : "Guest";
     const guestCanLeave = !!(guestConnection && guestConnection.canSend);
-    els.leaveSessionBtn.textContent = isHost ? "Back to Lobby" : (guestCanLeave ? "Leave" : "Reconnect");
+    els.leaveSessionBtn.textContent = isHost
+        ? "Back to Lobby"
+        : guestCanLeave
+          ? "Leave"
+          : "Reconnect";
     els.hostRevealBtn.style.display = isHost ? "inline-block" : "none";
     els.hostResetBtn.style.display = isHost ? "inline-block" : "none";
     els.hostRevealBtn.textContent = isRevealed ? "Conceal" : "Reveal";
@@ -193,7 +211,7 @@ export function renderTable() {
     if (els.hostRoundTitleInput) {
         if (isHost) {
             els.hostRoundTitleInput.style.display = "block";
-            const nextRoundTitleValue = state.session ? (state.session.roundTitle || "") : "";
+            const nextRoundTitleValue = state.session ? state.session.roundTitle || "" : "";
             const isEditingRoundTitle = document.activeElement === els.hostRoundTitleInput;
             if (!isEditingRoundTitle && els.hostRoundTitleInput.value !== nextRoundTitleValue) {
                 els.hostRoundTitleInput.value = nextRoundTitleValue;
@@ -223,38 +241,44 @@ function getCurrentRoundInfo(isHost) {
     if (isHost && state.session) {
         return {
             round: state.session.round,
-            title: state.session.roundTitle
+            title: state.session.roundTitle,
         };
     }
     if (state.guestRemoteState) {
         return {
             round: state.guestRemoteState.round,
-            title: state.guestRemoteState.roundTitle
+            title: state.guestRemoteState.roundTitle,
         };
     }
     return {
         round: 1,
-        title: ""
+        title: "",
     };
 }
 
 export function renderTablePlayers(players) {
     if (!players.length) {
-        els.tablePlayersGrid.innerHTML = "<div class=\"text-sm text-muted\">No players connected yet.</div>";
+        els.tablePlayersGrid.innerHTML =
+            '<div class="text-sm text-muted">No players connected yet.</div>';
         return;
     }
 
     const revealed = getCurrentRevealFlag();
-    els.tablePlayersGrid.innerHTML = players.map((player) => {
-        const hasVote = revealed ? player.vote != null : !!player.voted;
-        const showBack = revealed && player.vote != null;
-        const faceVote = hasVote ? "<div class=\"vote-check\">Voted</div>" : "<div class=\"vote-placeholder\">-</div>";
-        const backVote = hasVote ? escapeHtml(String(player.vote)) : "<span class=\"vote-placeholder\">-</span>";
-        const dotClass = player.connected ? "online" : "offline";
-        const connectionLabel = player.connected ? "Online" : "Offline";
-        const concealedLabel = hasVote ? "Voted" : "Waiting";
-        const revealedLabel = player.vote != null ? "Revealed vote" : "No vote";
-        return `<div class="player-card ${showBack ? "revealed" : ""}">
+    els.tablePlayersGrid.innerHTML = players
+        .map((player) => {
+            const hasVote = revealed ? player.vote != null : !!player.voted;
+            const showBack = revealed && player.vote != null;
+            const faceVote = hasVote
+                ? '<div class="vote-check">Voted</div>'
+                : '<div class="vote-placeholder">-</div>';
+            const backVote = hasVote
+                ? escapeHtml(String(player.vote))
+                : '<span class="vote-placeholder">-</span>';
+            const dotClass = player.connected ? "online" : "offline";
+            const connectionLabel = player.connected ? "Online" : "Offline";
+            const concealedLabel = hasVote ? "Voted" : "Waiting";
+            const revealedLabel = player.vote != null ? "Revealed vote" : "No vote";
+            return `<div class="player-card ${showBack ? "revealed" : ""}">
             <div class="player-card-face">
                 <div class="player-card-header">
                     <div class="player-name">${escapeHtml(player.name)}</div>
@@ -274,7 +298,8 @@ export function renderTablePlayers(players) {
                 <div class="vote-label">${revealedLabel} • ${connectionLabel}</div>
             </div>
         </div>`;
-    }).join("");
+        })
+        .join("");
 }
 
 export function renderVotePalette() {

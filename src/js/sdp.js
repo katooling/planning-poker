@@ -6,11 +6,11 @@ export function compactFromDescription(description) {
     }
     const compact = {
         t: description.type,
-        s: description.sdp
+        s: description.sdp,
     };
     log.info("signal", "SDP compacted", {
         type: description.type,
-        sdpLength: description.sdp.length
+        sdpLength: description.sdp.length,
     });
     return compact;
 }
@@ -23,7 +23,7 @@ export function descriptionFromCompact(compact) {
     if (typeof compact.s === "string" && compact.s.length > 0) {
         return {
             type: compact.t,
-            sdp: compact.s
+            sdp: compact.s,
         };
     }
 
@@ -53,7 +53,7 @@ export function descriptionFromCompact(compact) {
         "a=setup:" + setup,
         "a=mid:0",
         "a=sctp-port:5000",
-        "a=max-message-size:262144"
+        "a=max-message-size:262144",
     ];
 
     for (const candidateLine of candidateLines) {
@@ -63,7 +63,7 @@ export function descriptionFromCompact(compact) {
 
     return {
         type: compact.t,
-        sdp: lines.join("\r\n")
+        sdp: lines.join("\r\n"),
     };
 }
 
@@ -101,7 +101,7 @@ function parseCandidate(raw) {
         t: candidateType,
         ra: relatedAddress,
         rp: relatedPort,
-        tc: tcpType
+        tc: tcpType,
     };
 }
 
@@ -114,7 +114,7 @@ function buildCandidateLine(candidate) {
         candidate.i || "0.0.0.0",
         String(candidate.o || 9),
         "typ",
-        candidate.t || "host"
+        candidate.t || "host",
     ];
 
     if (candidate.ra) base.push("raddr", candidate.ra);
@@ -124,7 +124,9 @@ function buildCandidateLine(candidate) {
 }
 
 function formatFingerprint(noColonHex) {
-    const hex = String(noColonHex || "").replace(/[^0-9a-f]/gi, "").toUpperCase();
+    const hex = String(noColonHex || "")
+        .replace(/[^0-9a-f]/gi, "")
+        .toUpperCase();
     const chunks = [];
     for (let i = 0; i < hex.length; i += 2) {
         chunks.push(hex.slice(i, i + 2));

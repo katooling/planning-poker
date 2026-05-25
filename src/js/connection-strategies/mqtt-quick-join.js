@@ -6,7 +6,7 @@ import { els } from "../ui.js";
 function readRoomCodeAndPin() {
     return {
         roomCode: String(els.guestRoomCodeInput ? els.guestRoomCodeInput.value : "").trim(),
-        pin: String(els.guestRoomPinInput ? els.guestRoomPinInput.value : "").trim()
+        pin: String(els.guestRoomPinInput ? els.guestRoomPinInput.value : "").trim(),
     };
 }
 
@@ -25,6 +25,5 @@ export const mqttQuickJoinStrategy = {
     },
     regenerateGuest() {
         // MQTT quick join has nothing to regenerate.
-    }
+    },
 };
-

@@ -1,3 +1,4 @@
+// @ts-nocheck
 const MAX_ENTRIES = 500;
 const entries = [];
 
@@ -7,7 +8,7 @@ function push(level, category, message, data) {
         level,
         cat: category,
         msg: message,
-        data: data || null
+        data: data || null,
     };
 
     entries.push(entry);
@@ -41,8 +42,8 @@ export const log = {
             level: entry.level,
             category: entry.cat,
             message: entry.msg,
-            data: entry.data
+            data: entry.data,
         }));
         console.table(formatted);
-    }
+    },
 };

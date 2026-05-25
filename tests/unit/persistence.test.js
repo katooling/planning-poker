@@ -3,7 +3,7 @@ import {
     normalizeId,
     normalizeLoadedSnapshot,
     normalizeRoleView,
-    normalizeVote
+    normalizeVote,
 } from "../../src/js/persistence.js";
 
 describe("persistence normalization", () => {
@@ -32,7 +32,7 @@ describe("persistence normalization", () => {
             role: "guest",
             localId: "guest-1",
             displayName: "Guest",
-            currentView: "table"
+            currentView: "table",
         });
         expect(snapshot).toBeNull();
     });
@@ -50,8 +50,10 @@ describe("persistence normalization", () => {
                 roundTitle: "  Sprint  ",
                 started: true,
                 revealed: false,
-                players: [{ id: "host-1", name: "Host", isHost: true, connected: true, vote: null }]
-            }
+                players: [
+                    { id: "host-1", name: "Host", isHost: true, connected: true, vote: null },
+                ],
+            },
         });
         expect(snapshot.displayName).toBe("Guest");
         expect(snapshot.guestRemoteState.round).toBe(2);

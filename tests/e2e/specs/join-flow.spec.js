@@ -1,11 +1,12 @@
-import { test, expect } from "@playwright/test";
-import {    createHost,
+import { expect, test } from "@playwright/test";
+import {
+    createHost,
     decodeSignalCodeInPage,
     openHome,
     readCode,
     setConnectionMode,
     setConnectionModeForPages,
-    setConnectionPreferences
+    setConnectionPreferences,
 } from "../helpers/index.js";
 
 test("join code UI shows shareability hint", async ({ page }) => {
@@ -44,7 +45,6 @@ test("response code includes room identifier", async ({ browser }) => {
     expect(typeof payload.room).toBe("string");
     expect(payload.room.length).toBeGreaterThan(0);
     expect(payload.room).toBe(payload.f);
-
 });
 
 test("guest accepts response code with extra whitespace/newlines", async ({ browser }) => {
@@ -70,7 +70,9 @@ test("guest accepts response code with extra whitespace/newlines", async ({ brow
 
     await guest.locator("#guestResponseCodeInput").fill(expanded);
     await guest.locator("#connectGuestBtn").click();
-    await expect(guest.locator("#guestConnectNotice")).not.toContainText("Could not apply response code");
+    await expect(guest.locator("#guestConnectNotice")).not.toContainText(
+        "Could not apply response code",
+    );
 });
 
 test("guest shows precise error for unknown response code prefix", async ({ page }) => {
@@ -95,35 +97,44 @@ test("mqtt quick join connects guest with room code and host approval", async ({
     await setConnectionPreferences(host, {
         mode: "mqttQuickJoin",
         hostRequireApprovalFirstJoin: true,
-        hostAutoApproveKnownRejoin: true
+        hostAutoApproveKnownRejoin: true,
     });
     await setConnectionMode(guest, "mqttQuickJoin");
     await createHost(host, "HostQuickJoin");
-    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
+    const roomCode = String((await host.locator("#hostRoomCode").textContent()) || "").trim();
 
     await guest.locator("#displayNameInput").fill("GuestQuickJoin");
     await guest.locator("#joinRoomBtn").click();
     await guest.locator("#guestRoomCodeInput").fill(roomCode);
     await guest.locator("#connectGuestRoomBtn").click();
 
-    const pendingRow = host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestQuickJoin" }).first();
+    const pendingRow = host
+        .locator("#hostPendingRejoinList .row-between", { hasText: "GuestQuickJoin" })
+        .first();
     const guestTable = guest.locator("#tableView.active");
     const guestConnectView = guest.locator("#guestConnectView.active");
     const guestConnectNotice = guest.locator("#guestConnectNotice");
-    await expect.poll(
-        async () => {
-            const pendingVisible = await pendingRow.isVisible().catch(() => false);
-            const tableVisible = await guestTable.isVisible().catch(() => false);
-            const waitingForApproval = await guestConnectNotice.textContent()
-                .then((text) => /Waiting for host approval|Requesting host approval/.test(String(text || "")))
-                .catch(() => false);
-            return pendingVisible || tableVisible || waitingForApproval;
-        },
-        {
-            timeout: 15_000,
-            intervals: [300, 600, 1000]
-        }
-    ).toBeTruthy();
+    await expect
+        .poll(
+            async () => {
+                const pendingVisible = await pendingRow.isVisible().catch(() => false);
+                const tableVisible = await guestTable.isVisible().catch(() => false);
+                const waitingForApproval = await guestConnectNotice
+                    .textContent()
+                    .then((text) =>
+                        /Waiting for host approval|Requesting host approval/.test(
+                            String(text || ""),
+                        ),
+                    )
+                    .catch(() => false);
+                return pendingVisible || tableVisible || waitingForApproval;
+            },
+            {
+                timeout: 15_000,
+                intervals: [300, 600, 1000],
+            },
+        )
+        .toBeTruthy();
 
     const pendingVisible = await pendingRow.isVisible().catch(() => false);
     const tableVisible = await guestTable.isVisible().catch(() => false);
@@ -134,7 +145,9 @@ test("mqtt quick join connects guest with room code and host approval", async ({
     }
     if (!tableVisible) {
         await expect(guestConnectView).toBeVisible();
-        await expect(guestConnectNotice).toContainText(/Waiting for host approval|Requesting host approval/);
+        await expect(guestConnectNotice).toContainText(
+            /Waiting for host approval|Requesting host approval/,
+        );
     }
 });
 
@@ -148,18 +161,20 @@ test("mqtt quick join delayed host approval still auto-enters table", async ({ b
     await setConnectionPreferences(host, {
         mode: "mqttQuickJoin",
         hostRequireApprovalFirstJoin: true,
-        hostAutoApproveKnownRejoin: true
+        hostAutoApproveKnownRejoin: true,
     });
     await setConnectionMode(guest, "mqttQuickJoin");
     await createHost(host, "HostDelayedApprove");
-    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
+    const roomCode = String((await host.locator("#hostRoomCode").textContent()) || "").trim();
 
     await guest.locator("#displayNameInput").fill("GuestDelayedApprove");
     await guest.locator("#joinRoomBtn").click();
     await guest.locator("#guestRoomCodeInput").fill(roomCode);
     await guest.locator("#connectGuestRoomBtn").click();
 
-    const pendingRow = host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestDelayedApprove" }).first();
+    const pendingRow = host
+        .locator("#hostPendingRejoinList .row-between", { hasText: "GuestDelayedApprove" })
+        .first();
     let pendingVisible = false;
     try {
         await expect(pendingRow).toBeVisible({ timeout: 8_000 });
@@ -180,7 +195,9 @@ test("mqtt quick join delayed host approval still auto-enters table", async ({ b
         // Wait past guest waiting threshold to verify approval can arrive late.
         await host.waitForTimeout(6_000);
         await expect(guest.locator("#guestConnectView.active")).toBeVisible();
-        await expect(guest.locator("#guestConnectNotice")).toContainText(/Waiting for host approval|Requesting host approval/);
+        await expect(guest.locator("#guestConnectNotice")).toContainText(
+            /Waiting for host approval|Requesting host approval/,
+        );
 
         await pendingRow.getByRole("button", { name: "Approve" }).click();
         await expect(guest.locator("#tableView.active")).toBeVisible({ timeout: 12_000 });
@@ -197,11 +214,11 @@ test("mqtt quick join enforces room pin", async ({ browser }) => {
     await setConnectionPreferences(host, {
         mode: "mqttQuickJoin",
         hostRequireApprovalFirstJoin: true,
-        hostAutoApproveKnownRejoin: true
+        hostAutoApproveKnownRejoin: true,
     });
     await setConnectionMode(guest, "mqttQuickJoin");
     await createHost(host, "HostPin");
-    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
+    const roomCode = String((await host.locator("#hostRoomCode").textContent()) || "").trim();
     await host.locator("#hostRoomPinInput").fill("1234");
     await expect(host.locator("#hostRoomPinInput")).toHaveValue("1234");
 
@@ -210,15 +227,19 @@ test("mqtt quick join enforces room pin", async ({ browser }) => {
     await guest.locator("#guestRoomCodeInput").fill(roomCode);
     await guest.locator("#guestRoomPinInput").fill("9999");
     await guest.locator("#connectGuestRoomBtn").click();
-    await expect(host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestPin" })).toHaveCount(0, { timeout: 6_000 });
+    await expect(
+        host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestPin" }),
+    ).toHaveCount(0, { timeout: 6_000 });
     await expect(guest.locator("#guestConnectNotice")).toContainText(
         /Invalid room PIN|Wrong PIN|Could not connect to room/,
-        { timeout: 10_000 }
+        { timeout: 10_000 },
     );
 
     await guest.locator("#guestRoomPinInput").fill("1234");
     await guest.locator("#connectGuestRoomBtn").click();
-    const pendingRow = host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestPin" }).first();
+    const pendingRow = host
+        .locator("#hostPendingRejoinList .row-between", { hasText: "GuestPin" })
+        .first();
     await expect(pendingRow).toBeVisible({ timeout: 8_000 });
 });
 
@@ -231,12 +252,12 @@ test("join link pre-fills room and auto-requests join", async ({ browser }) => {
     await setConnectionPreferences(host, {
         mode: "mqttQuickJoin",
         hostRequireApprovalFirstJoin: true,
-        hostAutoApproveKnownRejoin: true
+        hostAutoApproveKnownRejoin: true,
     });
     await openHome(guest);
     await setConnectionMode(guest, "mqttQuickJoin");
     await createHost(host, "HostLink");
-    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
+    const roomCode = String((await host.locator("#hostRoomCode").textContent()) || "").trim();
     await guest.goto("/?room=" + encodeURIComponent(roomCode));
     await guest.locator("#displayNameInput").fill("GuestLink");
     await expect(guest.locator("#joinLinkHeading")).toBeVisible();
@@ -245,21 +266,25 @@ test("join link pre-fills room and auto-requests join", async ({ browser }) => {
 
     await expect(guest.locator("#guestConnectView.active")).toHaveCount(0);
     await expect(guest.locator("#joinLinkStatusPhase")).toBeVisible();
-    const pendingRow = host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestLink" }).first();
+    const pendingRow = host
+        .locator("#hostPendingRejoinList .row-between", { hasText: "GuestLink" })
+        .first();
     const guestTable = guest.locator("#tableView.active");
     const joinLinkStatus = guest.locator("#joinLinkStatusPhase");
-    await expect.poll(
-        async () => {
-            const pendingVisible = await pendingRow.isVisible().catch(() => false);
-            const tableVisible = await guestTable.isVisible().catch(() => false);
-            const waitingOnLinkScreen = await joinLinkStatus.isVisible().catch(() => false);
-            return pendingVisible || tableVisible || waitingOnLinkScreen;
-        },
-        {
-            timeout: 15_000,
-            intervals: [300, 600, 1000]
-        }
-    ).toBeTruthy();
+    await expect
+        .poll(
+            async () => {
+                const pendingVisible = await pendingRow.isVisible().catch(() => false);
+                const tableVisible = await guestTable.isVisible().catch(() => false);
+                const waitingOnLinkScreen = await joinLinkStatus.isVisible().catch(() => false);
+                return pendingVisible || tableVisible || waitingOnLinkScreen;
+            },
+            {
+                timeout: 15_000,
+                intervals: [300, 600, 1000],
+            },
+        )
+        .toBeTruthy();
 
     const pendingVisible = await pendingRow.isVisible().catch(() => false);
     const tableVisible = await guestTable.isVisible().catch(() => false);

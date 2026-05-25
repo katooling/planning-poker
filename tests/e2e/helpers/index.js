@@ -1,12 +1,12 @@
+export { decodeSignalCodeInPage, readCode } from "./code.js";
+export { connectGuestToHost, waitForGuestConnection } from "./guest.js";
+export { createHost, startGameFromLobby, startGameFromLobbyStrict } from "./host.js";
+export { playerCard } from "./locators.js";
 export {
-    openHome,
     openConnectionSettings,
+    openHome,
     saveConnectionSettings,
     setConnectionMode,
     setConnectionModeForPages,
-    setConnectionPreferences
+    setConnectionPreferences,
 } from "./navigation.js";
-export { createHost, startGameFromLobby, startGameFromLobbyStrict } from "./host.js";
-export { connectGuestToHost, waitForGuestConnection } from "./guest.js";
-export { readCode, decodeSignalCodeInPage } from "./code.js";
-export { playerCard } from "./locators.js";

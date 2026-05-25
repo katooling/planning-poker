@@ -1,4 +1,8 @@
-import { onGuestConnectWithResponseCode, onRegenerateGuestOffer, startGuestSession } from "../guest.js";
+import {
+    onGuestConnectWithResponseCode,
+    onRegenerateGuestOffer,
+    startGuestSession,
+} from "../guest.js";
 import { startHostSession } from "../host-session.js";
 
 export const manualWebRtcStrategy = {
@@ -14,6 +18,5 @@ export const manualWebRtcStrategy = {
     },
     regenerateGuest() {
         return onRegenerateGuestOffer();
-    }
+    },
 };
-

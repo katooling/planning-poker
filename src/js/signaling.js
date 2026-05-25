@@ -1,11 +1,17 @@
+/** @import { SignalPayload } from "./message-types.js"; */
 import { log } from "./log.js";
 
+/**
+ * @param {SignalPayload} payload
+ * @param {'offer' | 'answer'} expectedType
+ */
 export function validateSignalPayload(payload, expectedType) {
     if (!payload || typeof payload !== "object") throw new Error("Malformed code.");
     if (payload.v !== 1) throw new Error("Unsupported code version.");
     const fromId = payload.f || payload.from;
     if (!fromId || !payload.d) throw new Error("Missing signal fields.");
-    if (!payload.d.t || payload.d.t !== expectedType) throw new Error("Expected " + expectedType + " code.");
+    if (!payload.d.t || payload.d.t !== expectedType)
+        throw new Error("Expected " + expectedType + " code.");
 }
 
 export async function encodeSignalCode(payload) {
@@ -18,7 +24,7 @@ export async function encodeSignalCode(payload) {
             mode: "compressed",
             inputBytes: bytes.length,
             outputBytes: compressed.length,
-            ratio: Number(ratio.toFixed(2))
+            ratio: Number(ratio.toFixed(2)),
         });
         return "C1." + bytesToBase64Url(compressed);
     }
@@ -51,7 +57,7 @@ export async function decodeSignalCode(code) {
     log.info("signal", "Signal code decoded", {
         mode: prefix,
         inputChars: compact.length,
-        decodedBytes: rawBytes.length
+        decodedBytes: rawBytes.length,
     });
     return payload;
 }

@@ -1,13 +1,14 @@
-import { state } from "./state.js";
-import { log } from "./log.js";
-import { shutdownGuest, shutdownHost } from "./webrtc.js";
-import { els, setSignalCodeDisplay, showNotice, showView } from "./ui.js";
 import { getHostPlayersAsArray, upsertHostPlayer } from "./game.js";
-import { renderHostLobby, renderTable } from "./render.js";
-import { saveSessionSnapshot } from "./persistence.js";
 import { ROUND_TITLE_MAX_LENGTH, sanitizeHostName } from "./host-shared.js";
+import { log } from "./log.js";
 import { sendJson } from "./messaging.js";
+import { saveSessionSnapshot } from "./persistence.js";
+import { renderHostLobby, renderTable } from "./render.js";
 import { EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
+// @ts-nocheck
+import { state } from "./state.js";
+import { els, setSignalCodeDisplay, showNotice, showView } from "./ui.js";
+import { shutdownGuest, shutdownHost } from "./webrtc.js";
 
 export function startHostSession(displayName) {
     shutdownGuest();
@@ -27,19 +28,23 @@ export function startHostSession(displayName) {
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.rawCode,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyText,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyMetaText,
-        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText
+        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText,
     );
     state.session = {
         round: 1,
         roundTitle: "",
         started: false,
         revealed: false,
-        players: {}
+        players: {},
     };
     upsertHostPlayer(state.localId, displayName, true, sanitizeHostName);
     renderHostLobby();
     showView("hostLobby");
-    showNotice(els.hostLobbyNotice, "Room created. Ask a teammate to click Join Room and send you their join code.", "info");
+    showNotice(
+        els.hostLobbyNotice,
+        "Room created. Ask a teammate to click Join Room and send you their join code.",
+        "info",
+    );
     saveSessionSnapshot();
     log.info("host", "Room created", { hostId: state.localId, name: displayName });
 }
@@ -63,19 +68,21 @@ export function onHostRevealVotes() {
         broadcastMessageToGuests({
             t: "reveal",
             round: state.session.round,
-            players: getHostPlayersAsArray(true)
+            players: getHostPlayersAsArray(true),
         });
     } else {
         // Mirror reveal with an explicit conceal command so guests can transition
         // even if a subsequent state sync packet is delayed or dropped.
         broadcastMessageToGuests({
             t: "conceal",
-            round: state.session.round
+            round: state.session.round,
         });
     }
     broadcastState();
     renderTable();
-    log.info("game", revealedNext ? "Reveal triggered" : "Conceal triggered", { round: state.session.round });
+    log.info("game", revealedNext ? "Reveal triggered" : "Conceal triggered", {
+        round: state.session.round,
+    });
 }
 
 export function onHostNewRound() {
@@ -99,7 +106,10 @@ export function onHostRoundTitleChange(title) {
     state.session.roundTitle = sanitizeRoundTitle(title);
     broadcastState();
     renderTable();
-    log.info("game", "Round title updated", { round: state.session.round, hasTitle: !!state.session.roundTitle });
+    log.info("game", "Round title updated", {
+        round: state.session.round,
+        hasTitle: !!state.session.roundTitle,
+    });
 }
 
 export function broadcastState() {
@@ -118,9 +128,9 @@ export function broadcastState() {
                 connected: player.connected,
                 isHost: player.isHost,
                 voted: hostPlayer.vote != null,
-                vote: state.session.revealed ? hostPlayer.vote : null
+                vote: state.session.revealed ? hostPlayer.vote : null,
             };
-        })
+        }),
     };
     broadcastMessageToGuests(payload);
     saveSessionSnapshot();
@@ -131,14 +141,15 @@ export function broadcastMessageToGuests(message) {
     const peers = Array.from(state.hostPeers.values());
     for (const peer of peers) {
         if (!peer.dc || peer.dc.readyState !== "open") continue;
-        const outbound = message && Object.prototype.hasOwnProperty.call(message, "to")
-            ? message
-            : { ...message, to: peer.id };
+        const outbound =
+            message && Object.hasOwn(message, "to") ? message : { ...message, to: peer.id };
         sendJson(peer.dc, outbound);
     }
 }
 
 function sanitizeRoundTitle(title) {
     // Keep one-space normalization but do not trim so host can type trailing spaces naturally.
-    return String(title || "").replace(/\s+/g, " ").slice(0, ROUND_TITLE_MAX_LENGTH);
+    return String(title || "")
+        .replace(/\s+/g, " ")
+        .slice(0, ROUND_TITLE_MAX_LENGTH);
 }

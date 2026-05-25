@@ -1,7 +1,24 @@
-import { state } from "./state.js";
+/** @import { GameMessage } from "./message-types.js"; */
+
+import { getGuestConnectionPresentation } from "./guest-connection-status.js";
+import { clearJoinLinkContext, isJoinLinkContext, routeGuestJoinFeedback } from "./join-link.js";
 import { log } from "./log.js";
-import { decodeSignalCode, encodeSignalCode, validateSignalPayload } from "./signaling.js";
+import { sendJson } from "./messaging.js";
+import { createMqttRelayChannel } from "./mqtt-relay.js";
+import { clearSessionSnapshot, saveSessionSnapshot } from "./persistence.js";
+import { renderTable } from "./render.js";
 import { compactFromDescription, descriptionFromCompact } from "./sdp.js";
+import { EMPTY_GUEST_JOIN_CODE_DISPLAY } from "./signal-display-presets.js";
+import { decodeSignalCode, encodeSignalCode, validateSignalPayload } from "./signaling.js";
+import { state } from "./state.js";
+import {
+    els,
+    setGuestStep,
+    setSignalCodeDisplay,
+    showNotice,
+    showView,
+    updateConnectionStatus,
+} from "./ui.js";
 import {
     attemptIceRestart,
     createPeerConnection,
@@ -9,20 +26,8 @@ import {
     resetGuestConnection,
     shutdownGuest,
     shutdownHost,
-    waitForIceComplete
+    waitForIceComplete,
 } from "./webrtc.js";
-import { els, setGuestStep, setSignalCodeDisplay, showNotice, showView, updateConnectionStatus } from "./ui.js";
-import { getGuestConnectionPresentation } from "./guest-connection-status.js";
-import {
-    clearJoinLinkContext,
-    isJoinLinkContext,
-    routeGuestJoinFeedback
-} from "./join-link.js";
-import { renderTable } from "./render.js";
-import { createMqttRelayChannel } from "./mqtt-relay.js";
-import { clearSessionSnapshot, saveSessionSnapshot } from "./persistence.js";
-import { sendJson } from "./messaging.js";
-import { EMPTY_GUEST_JOIN_CODE_DISPLAY } from "./signal-display-presets.js";
 
 const RELAY_FALLBACK_DELAY_MS = 2500;
 const REJOIN_ACK_TIMEOUT_MS = 4500;
@@ -93,15 +98,16 @@ function scheduleGuestDisconnectedRecovery(pc, channel) {
         if (state.role !== "guest" || state.guestPeer !== pc) return;
         const connectionState = pc.connectionState;
         const iceState = pc.iceConnectionState;
-        const stillUnstable = connectionState === "disconnected"
-            || connectionState === "failed"
-            || iceState === "disconnected"
-            || iceState === "failed";
+        const stillUnstable =
+            connectionState === "disconnected" ||
+            connectionState === "failed" ||
+            iceState === "disconnected" ||
+            iceState === "failed";
         if (!stillUnstable) return;
 
         log.warn("guest", "Guest link still unstable; forcing recovery", {
             connectionState,
-            iceState
+            iceState,
         });
         if (state.guestChannel === channel && typeof channel.close === "function") {
             try {
@@ -124,7 +130,7 @@ function notifyQuickJoinGuest({
     phase,
     subtext,
     escalate = false,
-    focusPin = false
+    focusPin = false,
 }) {
     if (isJoinLinkContext()) {
         routeGuestJoinFeedback({ message, type, phase, subtext, escalate, focusPin });
@@ -142,7 +148,7 @@ function notifyWaitingForHostApproval(options = {}) {
             message: "",
             type: "info",
             phase: "waitingApproval",
-            subtext
+            subtext,
         });
         return;
     }
@@ -151,7 +157,7 @@ function notifyWaitingForHostApproval(options = {}) {
         : "Waiting for host approval. You can retry.";
     notifyQuickJoinGuest({
         message: retryMessage,
-        type: "warn"
+        type: "warn",
     });
 }
 
@@ -213,7 +219,10 @@ export function startGuestQuickJoin(displayName, options = {}) {
     resetGuestRejoinState();
     stopGuestPresenceLoop();
     saveSessionSnapshot();
-    log.info("guest", "Quick join selected", { name: displayName, forJoinLink: !!options.forJoinLink });
+    log.info("guest", "Quick join selected", {
+        name: displayName,
+        forJoinLink: !!options.forJoinLink,
+    });
 }
 
 export async function onRegenerateGuestOffer() {
@@ -236,15 +245,25 @@ export async function onRegenerateGuestOffer() {
             EMPTY_GUEST_JOIN_CODE_DISPLAY.rawCode,
             EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyText,
             EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyMetaText,
-            EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText
+            EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText,
         );
         saveSessionSnapshot();
         await createGuestOfferCode();
-        showNotice(els.guestConnectNotice, "Share this join code with the host. Then paste the response code.", "info");
+        showNotice(
+            els.guestConnectNotice,
+            "Share this join code with the host. Then paste the response code.",
+            "info",
+        );
         saveSessionSnapshot();
     } catch (error) {
-        log.error("error", "Failed to generate guest offer", { message: String(error.message || error) });
-        showNotice(els.guestConnectNotice, "Could not generate join code: " + String(error.message || error), "error");
+        log.error("error", "Failed to generate guest offer", {
+            message: String(error.message || error),
+        });
+        showNotice(
+            els.guestConnectNotice,
+            "Could not generate join code: " + String(error.message || error),
+            "error",
+        );
         saveSessionSnapshot();
     }
 }
@@ -260,7 +279,11 @@ export async function onGuestConnectWithResponseCode() {
         return;
     }
     if (state.guestResponseApplied) {
-        showNotice(els.guestConnectNotice, "Response already applied. Waiting for data channel; regenerate only if you need a fresh join code.", "warn");
+        showNotice(
+            els.guestConnectNotice,
+            "Response already applied. Waiting for data channel; regenerate only if you need a fresh join code.",
+            "warn",
+        );
         return;
     }
 
@@ -280,14 +303,24 @@ export async function onGuestConnectWithResponseCode() {
         await state.guestPeer.setRemoteDescription(answerDescription);
         state.guestResponseApplied = true;
         els.connectGuestBtn.disabled = true;
-        showNotice(els.guestConnectNotice, "Response accepted. Waiting for data channel...", "info");
+        showNotice(
+            els.guestConnectNotice,
+            "Response accepted. Waiting for data channel...",
+            "info",
+        );
         saveSessionSnapshot();
         log.info("guest", "Response applied", {
-            answerSdpLength: (answerDescription.sdp || "").length
+            answerSdpLength: (answerDescription.sdp || "").length,
         });
     } catch (error) {
-        log.error("error", "Failed to apply host response", { message: String(error.message || error) });
-        showNotice(els.guestConnectNotice, "Could not apply response code: " + String(error.message || error), "error");
+        log.error("error", "Failed to apply host response", {
+            message: String(error.message || error),
+        });
+        showNotice(
+            els.guestConnectNotice,
+            "Could not apply response code: " + String(error.message || error),
+            "error",
+        );
     }
 }
 
@@ -310,7 +343,7 @@ export async function createGuestOfferCode() {
         v: 1,
         f: state.localId,
         n: state.displayName,
-        d: compactFromDescription(pc.localDescription)
+        d: compactFromDescription(pc.localDescription),
     };
     const code = await encodeSignalCode(payload);
     state.guestJoinCodeRaw = code;
@@ -319,7 +352,7 @@ export async function createGuestOfferCode() {
         els.guestJoinCodeMeta,
         els.guestJoinCodeQuality,
         code,
-        "Generating code..."
+        "Generating code...",
     );
     els.copyGuestJoinCodeBtn.disabled = false;
     els.copyGuestJoinCodeFormattedBtn.disabled = false;
@@ -328,7 +361,7 @@ export async function createGuestOfferCode() {
 
     log.info("guest", "Offer created", {
         codeLength: code.length,
-        iceGatheringState: pc.iceGatheringState
+        iceGatheringState: pc.iceGatheringState,
     });
 }
 
@@ -418,7 +451,11 @@ export function setupGuestPeerHandlers(pc, dc) {
             if (!restartTriggered) {
                 restartTriggered = attemptIceRestart(pc, { role: "guest" });
                 if (restartTriggered) {
-                    showNotice(els.guestConnectNotice, "Direct path failed. Starting relay fallback shortly...", "warn");
+                    showNotice(
+                        els.guestConnectNotice,
+                        "Direct path failed. Starting relay fallback shortly...",
+                        "warn",
+                    );
                     relayFallbackTimer = setTimeout(() => {
                         triggerRelayFallback("post-ice-restart-delay");
                     }, RELAY_FALLBACK_DELAY_MS);
@@ -432,7 +469,7 @@ export function setupGuestPeerHandlers(pc, dc) {
                 showNotice(
                     els.tableNotice,
                     "Connection failed. Could not establish a direct peer-to-peer path.",
-                    "error"
+                    "error",
                 );
             }
             setGuestStep(2);
@@ -445,10 +482,11 @@ function enterGuestTable(channel) {
     settleGuestRejoinState();
     clearGuestDisconnectedRecoveryTimer();
     const peer = state.guestPeer;
-    const peerHealthy = !peer
-        || (peer.connectionState === "connected"
-            && peer.iceConnectionState !== "disconnected"
-            && peer.iceConnectionState !== "failed");
+    const peerHealthy =
+        !peer ||
+        (peer.connectionState === "connected" &&
+            peer.iceConnectionState !== "disconnected" &&
+            peer.iceConnectionState !== "failed");
     setGuestConnectionPhase(peerHealthy ? "connected" : "unstable");
     startGuestPresenceLoop();
     startGuestMqttHealthLoop();
@@ -472,7 +510,7 @@ export function onHostChannelOpen(channel) {
         routeGuestJoinFeedback({
             message: "You're in!",
             type: "info",
-            phase: "entering"
+            phase: "entering",
         });
         setTimeout(() => enterGuestTable(channel), 500);
         return;
@@ -520,7 +558,7 @@ export async function connectGuestByRoomCode(roomCode, pin = "", options = {}) {
         notifyQuickJoinGuest({
             message: "Enter a room code first.",
             type: "warn",
-            escalate: isJoinLinkContext()
+            escalate: isJoinLinkContext(),
         });
         return;
     }
@@ -545,7 +583,7 @@ export async function connectGuestByRoomCode(roomCode, pin = "", options = {}) {
     notifyQuickJoinGuest({
         message: isJoinLinkContext() ? "Connecting to room…" : "Requesting host approval...",
         type: "info",
-        phase: isJoinLinkContext() ? "connecting" : undefined
+        phase: isJoinLinkContext() ? "connecting" : undefined,
     });
     await attemptGuestDirectRelayJoin("quick-join");
 }
@@ -561,7 +599,7 @@ export function runGuestMqttHealthCheckForTest() {
         phase: state.guestConnectionPhase,
         channelReadyState: state.guestChannel ? state.guestChannel.readyState : "none",
         canRejoin: canAttemptGuestAutoRejoin(),
-        mqttConnectCount: Number(window.__PP_MQTT_CONNECT_COUNT || 0)
+        mqttConnectCount: Number(window.__PP_MQTT_CONNECT_COUNT || 0),
     };
 }
 
@@ -577,20 +615,20 @@ export function getGuestSessionDiagnosticsForTest() {
         phase: state.guestConnectionPhase,
         remoteState: state.guestRemoteState
             ? {
-                round: state.guestRemoteState.round,
-                revealed: state.guestRemoteState.revealed,
-                started: state.guestRemoteState.started,
-                playerCount: Array.isArray(state.guestRemoteState.players)
-                    ? state.guestRemoteState.players.length
-                    : 0
-            }
+                  round: state.guestRemoteState.round,
+                  revealed: state.guestRemoteState.revealed,
+                  started: state.guestRemoteState.started,
+                  playerCount: Array.isArray(state.guestRemoteState.players)
+                      ? state.guestRemoteState.players.length
+                      : 0,
+              }
             : null,
         selectedVote: state.selectedVote,
         connectionText: String(
             document.getElementById("connectionStatusText")
                 ? document.getElementById("connectionStatusText").textContent
-                : ""
-        )
+                : "",
+        ),
     };
 }
 
@@ -600,7 +638,7 @@ function startGuestRelayFallback() {
         showNotice(
             els.guestConnectNotice,
             "Direct path failed and relay setup is missing room info. Regenerate your join code and retry.",
-            "error"
+            "error",
         );
         return;
     }
@@ -620,10 +658,12 @@ function startGuestRelayFallback() {
             const reason = errorInfo && errorInfo.reason ? errorInfo.reason : "unknown";
             showNotice(
                 els.guestConnectNotice,
-                "Relay fallback failed (" + reason + "). Regenerate your join code or try another network.",
-                "error"
+                "Relay fallback failed (" +
+                    reason +
+                    "). Regenerate your join code or try another network.",
+                "error",
             );
-        }
+        },
     });
     state.guestChannel = relayChannel;
 }
@@ -632,7 +672,10 @@ function canAttemptGuestAutoRejoin() {
     if (!state.guestAutoRejoinEnabled) return false;
     if (state.role !== "guest") return false;
     if (!state.roomId) return false;
-    if (state.currentView !== "table" && !(state.guestRemoteState && state.guestRemoteState.started)) {
+    if (
+        state.currentView !== "table" &&
+        !(state.guestRemoteState && state.guestRemoteState.started)
+    ) {
         return false;
     }
     return guestRejoinAttempts < getGuestRejoinMaxRetries();
@@ -728,7 +771,7 @@ function sendPresencePing(reason) {
     sendJson(state.guestChannel, {
         t: "presence",
         n: state.displayName,
-        reason: reason || "beat"
+        reason: reason || "beat",
     });
 }
 
@@ -748,7 +791,7 @@ function startGuestPresenceLoop() {
 
 function getGuestRejoinDelayMs() {
     const step = Math.max(0, guestRejoinAttempts - 1);
-    return Math.min(1000 * (2 ** step), 8000);
+    return Math.min(1000 * 2 ** step, 8000);
 }
 
 function clearGuestJoinRetryTimer() {
@@ -799,7 +842,7 @@ async function attemptGuestAutoRejoin(reason) {
     showNotice(
         els.tableNotice,
         "Trying to reconnect (" + guestRejoinAttempts + "/" + getGuestRejoinMaxRetries() + ")...",
-        "warn"
+        "warn",
     );
     log.info("guest", "Guest auto-rejoin attempt", { reason, attempt: guestRejoinAttempts });
 
@@ -819,7 +862,7 @@ async function attemptGuestAutoRejoin(reason) {
                 t: "rejoin",
                 id: state.localId,
                 n: state.displayName,
-                pin: state.guestJoinPin || ""
+                pin: state.guestJoinPin || "",
             });
             setTimeout(() => {
                 if (state.guestChannel !== channel) return;
@@ -845,7 +888,7 @@ async function attemptGuestAutoRejoin(reason) {
             showNotice(
                 els.tableNotice,
                 "Could not reconnect automatically. Click Reconnect to generate a fresh join code.",
-                "error"
+                "error",
             );
         },
         onMessage: (payload) => {
@@ -858,7 +901,7 @@ async function attemptGuestAutoRejoin(reason) {
             showNotice(
                 els.tableNotice,
                 "Reconnect attempt failed (" + reasonText + "). Retrying...",
-                "warn"
+                "warn",
             );
             if (canAttemptGuestAutoRejoin()) {
                 scheduleGuestAutoRejoin("relay-failure");
@@ -870,9 +913,9 @@ async function attemptGuestAutoRejoin(reason) {
             showNotice(
                 els.tableNotice,
                 "Could not reconnect automatically. Click Reconnect to generate a fresh join code.",
-                "error"
+                "error",
             );
-        }
+        },
     });
     state.guestChannel = relayChannel;
 }
@@ -883,7 +926,7 @@ async function attemptGuestDirectRelayJoin(reason) {
         notifyQuickJoinGuest({
             message: "Room code is missing.",
             type: "error",
-            escalate: isJoinLinkContext()
+            escalate: isJoinLinkContext(),
         });
         return;
     }
@@ -905,7 +948,7 @@ async function attemptGuestDirectRelayJoin(reason) {
                 t: "rejoin",
                 id: state.localId,
                 n: state.displayName,
-                pin: state.guestJoinPin || ""
+                pin: state.guestJoinPin || "",
             });
             if (isJoinLinkContext()) {
                 notifyWaitingForHostApproval();
@@ -917,10 +960,11 @@ async function attemptGuestDirectRelayJoin(reason) {
                     guestAwaitingRejoinAck = false;
                     updateConnectionStatus(false, "Disconnected");
                     notifyQuickJoinGuest({
-                        message: "Wrong PIN or the host has not approved you yet. Check the PIN and try again.",
+                        message:
+                            "Wrong PIN or the host has not approved you yet. Check the PIN and try again.",
                         type: "error",
                         escalate: true,
-                        focusPin: true
+                        focusPin: true,
                     });
                     try {
                         channel.close();
@@ -953,7 +997,7 @@ async function attemptGuestDirectRelayJoin(reason) {
                 message: "Connection dropped while waiting for host approval. Try again.",
                 type: "warn",
                 phase: "waitingApproval",
-                escalate: isJoinLinkContext()
+                escalate: isJoinLinkContext(),
             });
         },
         onMessage: (payload) => {
@@ -973,7 +1017,7 @@ async function attemptGuestDirectRelayJoin(reason) {
                         reason,
                         reasonText,
                         roomId,
-                        attempt: retryAttempt
+                        attempt: retryAttempt,
                     });
                     return;
                 }
@@ -982,22 +1026,23 @@ async function attemptGuestDirectRelayJoin(reason) {
                 notifyQuickJoinGuest({
                     message: "Could not keep waiting for host approval. Try again.",
                     type: "warn",
-                    escalate: isJoinLinkContext()
+                    escalate: isJoinLinkContext(),
                 });
                 return;
             }
             notifyQuickJoinGuest({
                 message: "Could not connect to room (" + reasonText + ").",
                 type: "error",
-                escalate: isJoinLinkContext()
+                escalate: isJoinLinkContext(),
             });
             log.warn("guest", "Quick join relay failed", { reason, reasonText, roomId });
-        }
+        },
     });
     state.guestChannel = relayChannel;
 }
 
 export function handleGuestInboundMessage(rawData, channel) {
+    /** @type {GameMessage | null} */
     let message;
     try {
         message = JSON.parse(rawData);
@@ -1030,9 +1075,10 @@ export function handleGuestInboundMessage(rawData, channel) {
         guestAwaitingRejoinAck = false;
         clearGuestJoinRetryTimer();
         guestJoinRetryAttempts = 0;
-        const rejectReason = typeof message.reason === "string" && message.reason.trim()
-            ? message.reason.trim()
-            : "Host approval required.";
+        const rejectReason =
+            typeof message.reason === "string" && message.reason.trim()
+                ? message.reason.trim()
+                : "Host approval required.";
         updateConnectionStatus(false, "Reconnect pending approval");
         const retryAllowed = canAttemptGuestAutoRejoin();
         const isPinError = /invalid room pin/i.test(rejectReason);
@@ -1041,16 +1087,14 @@ export function handleGuestInboundMessage(rawData, channel) {
                 message: rejectReason,
                 type: "warn",
                 escalate: true,
-                focusPin: isPinError
+                focusPin: isPinError,
             });
         } else {
-            const retryHint = retryAllowed
-                ? " Retrying shortly..."
-                : " Click Join Room to retry.";
+            const retryHint = retryAllowed ? " Retrying shortly..." : " Click Join Room to retry.";
             showNotice(
                 state.currentView === "table" ? els.tableNotice : els.guestConnectNotice,
                 rejectReason + retryHint,
-                "warn"
+                "warn",
             );
         }
         if (state.guestChannel === channel) {
@@ -1069,9 +1113,10 @@ export function handleGuestInboundMessage(rawData, channel) {
 
     if (message.t === "kicked") {
         if (message.to && message.to !== state.localId) return;
-        const reason = typeof message.reason === "string" && message.reason.trim()
-            ? message.reason.trim()
-            : "Removed by host.";
+        const reason =
+            typeof message.reason === "string" && message.reason.trim()
+                ? message.reason.trim()
+                : "Removed by host.";
         showView("home");
         shutdownGuest(reason);
         clearSessionSnapshot();
@@ -1085,7 +1130,7 @@ export function handleGuestInboundMessage(rawData, channel) {
             roundTitle: typeof message.roundTitle === "string" ? message.roundTitle : "",
             started: !!message.started,
             revealed: !!message.revealed,
-            players: Array.isArray(message.players) ? message.players : []
+            players: Array.isArray(message.players) ? message.players : [],
         };
         if (state.guestRemoteState.started && state.currentView !== "table") {
             showView("table");
@@ -1129,7 +1174,7 @@ export function handleGuestInboundMessage(rawData, channel) {
             state.guestRemoteState.players = state.guestRemoteState.players.map((player) => ({
                 ...player,
                 voted: false,
-                vote: null
+                vote: null,
             }));
         }
         renderTable();

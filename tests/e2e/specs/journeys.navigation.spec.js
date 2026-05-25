@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { createHost, openHome } from "../helpers/index.js";
 
 test("create/join requires a display name", async ({ page }) => {
@@ -51,9 +51,23 @@ test("guest reconnect path from disconnected table returns to join flow", async 
             started: true,
             revealed: false,
             players: [
-                { id: "host1", name: "Host", connected: false, isHost: true, voted: false, vote: null },
-                { id: "guest1", name: "GuestReconnect", connected: false, isHost: false, voted: false, vote: null }
-            ]
+                {
+                    id: "host1",
+                    name: "Host",
+                    connected: false,
+                    isHost: true,
+                    voted: false,
+                    vote: null,
+                },
+                {
+                    id: "guest1",
+                    name: "GuestReconnect",
+                    connected: false,
+                    isHost: false,
+                    voted: false,
+                    vote: null,
+                },
+            ],
         };
         showView("table");
         renderTable();
@@ -64,7 +78,7 @@ test("guest reconnect path from disconnected table returns to join flow", async 
 
     await expect(page.locator("#guestConnectView.active")).toBeVisible();
     await expect(page.locator("#guestConnectNotice")).toContainText(
-        /Session restored|Retrying relay reconnect/
+        /Session restored|Retrying relay reconnect/,
     );
     await expect(page.locator("#guestRoomCodeInput")).toHaveValue("room-reconnect");
 });

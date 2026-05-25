@@ -3,7 +3,7 @@ const STORAGE_CONNECTION_KEY = "planningPoker.connectionSettings";
 const DEFAULT_SETTINGS = {
     strategy: "mqttQuickJoin",
     hostRequireApprovalFirstJoin: true,
-    hostAutoApproveKnownRejoin: true
+    hostAutoApproveKnownRejoin: true,
 };
 
 function sanitizeStrategy(value) {
@@ -18,7 +18,7 @@ export function loadConnectionSettings() {
         return {
             strategy: sanitizeStrategy(parsed.strategy),
             hostRequireApprovalFirstJoin: parsed.hostRequireApprovalFirstJoin !== false,
-            hostAutoApproveKnownRejoin: parsed.hostAutoApproveKnownRejoin !== false
+            hostAutoApproveKnownRejoin: parsed.hostAutoApproveKnownRejoin !== false,
         };
     } catch (_error) {
         return { ...DEFAULT_SETTINGS };
@@ -29,7 +29,7 @@ export function saveConnectionSettings(settings) {
     const normalized = {
         strategy: sanitizeStrategy(settings.strategy),
         hostRequireApprovalFirstJoin: settings.hostRequireApprovalFirstJoin !== false,
-        hostAutoApproveKnownRejoin: settings.hostAutoApproveKnownRejoin !== false
+        hostAutoApproveKnownRejoin: settings.hostAutoApproveKnownRejoin !== false,
     };
     try {
         localStorage.setItem(STORAGE_CONNECTION_KEY, JSON.stringify(normalized));
@@ -38,4 +38,3 @@ export function saveConnectionSettings(settings) {
     }
     return normalized;
 }
-

@@ -1,5 +1,6 @@
-import { VOTE_VALUES, state } from "./state.js";
+// @ts-nocheck
 import { sanitizeText } from "./sanitize.js";
+import { state, VOTE_VALUES } from "./state.js";
 
 const SESSION_STORAGE_KEY = "planningPoker.session";
 const SNAPSHOT_VERSION = 1;
@@ -54,14 +55,14 @@ function normalizeHostPlayers(playersRaw, localId, displayName) {
                 name: normalizeName(entry.name, id === localId ? displayName : "Guest"),
                 connected: id === localId,
                 vote: normalizeVote(entry.vote),
-                isHost: id === localId
+                isHost: id === localId,
             };
         }
     }
 
     const hostPlayer = players[localId] || {
         id: localId,
-        vote: null
+        vote: null,
     };
     hostPlayer.id = localId;
     hostPlayer.name = normalizeName(hostPlayer.name, displayName || "Host");
@@ -83,7 +84,7 @@ function normalizeHostSession(sessionRaw, localId, displayName) {
         roundTitle: normalizeRoundTitle(sessionRaw.roundTitle),
         started: !!sessionRaw.started,
         revealed: !!sessionRaw.revealed,
-        players: normalizeHostPlayers(sessionRaw.players, localId, displayName)
+        players: normalizeHostPlayers(sessionRaw.players, localId, displayName),
     };
 }
 
@@ -123,9 +124,10 @@ function normalizePendingRejoinRequests(requestsRaw, localId) {
         seen.add(id);
         const name = normalizeName(entry.name, "Guest");
         const requestedAtRaw = Number(entry.requestedAt);
-        const requestedAt = Number.isFinite(requestedAtRaw) && requestedAtRaw > 0
-            ? Math.floor(requestedAtRaw)
-            : Date.now();
+        const requestedAt =
+            Number.isFinite(requestedAtRaw) && requestedAtRaw > 0
+                ? Math.floor(requestedAtRaw)
+                : Date.now();
         normalized.push({ id, name, requestedAt });
     }
     return normalized;
@@ -146,7 +148,7 @@ function normalizeGuestPlayers(playersRaw) {
             connected: !!entry.connected,
             isHost: !!entry.isHost,
             voted,
-            vote
+            vote,
         });
     }
     return normalized;
@@ -163,7 +165,7 @@ function normalizeGuestRemoteState(remoteStateRaw) {
         roundTitle: normalizeRoundTitle(remoteStateRaw.roundTitle),
         started: !!remoteStateRaw.started,
         revealed: !!remoteStateRaw.revealed,
-        players: normalizeGuestPlayers(remoteStateRaw.players)
+        players: normalizeGuestPlayers(remoteStateRaw.players),
     };
 }
 
@@ -183,9 +185,12 @@ function buildSnapshotFromState() {
         const hostApprovedGuestIds = normalizeApprovedGuestIds(
             state.hostApprovedGuestIds,
             localId,
-            session.players
+            session.players,
         );
-        const hostPendingRejoinRequests = normalizePendingRejoinRequests(state.hostPendingRejoinRequests, localId);
+        const hostPendingRejoinRequests = normalizePendingRejoinRequests(
+            state.hostPendingRejoinRequests,
+            localId,
+        );
         return {
             v: SNAPSHOT_VERSION,
             savedAt: Date.now(),
@@ -201,7 +206,7 @@ function buildSnapshotFromState() {
             currentView: normalizeRoleView("host", state.currentView),
             roomId: normalizeId(state.roomId || localId) || localId,
             selectedVote,
-            session
+            session,
         };
     }
 
@@ -217,7 +222,7 @@ function buildSnapshotFromState() {
         currentView: normalizeRoleView("guest", state.currentView),
         roomId: normalizeId(state.roomId) || null,
         selectedVote,
-        guestRemoteState: normalizeGuestRemoteState(state.guestRemoteState)
+        guestRemoteState: normalizeGuestRemoteState(state.guestRemoteState),
     };
 }
 
@@ -229,7 +234,8 @@ function normalizeLoadedSnapshot(snapshotRaw) {
     if (!Number.isFinite(savedAt) || savedAt <= 0) return null;
     if (Date.now() - savedAt > SNAPSHOT_MAX_AGE_MS) return null;
 
-    const role = snapshotRaw.role === "host" ? "host" : snapshotRaw.role === "guest" ? "guest" : null;
+    const role =
+        snapshotRaw.role === "host" ? "host" : snapshotRaw.role === "guest" ? "guest" : null;
     if (!role) return null;
 
     const localId = normalizeId(snapshotRaw.localId);
@@ -238,7 +244,8 @@ function normalizeLoadedSnapshot(snapshotRaw) {
     const selectedVote = normalizeVote(snapshotRaw.selectedVote);
     const roomId = normalizeId(snapshotRaw.roomId) || null;
     const currentView = normalizeRoleView(role, snapshotRaw.currentView);
-    const connectionStrategy = snapshotRaw.connectionStrategy === "manualWebRtc" ? "manualWebRtc" : "mqttQuickJoin";
+    const connectionStrategy =
+        snapshotRaw.connectionStrategy === "manualWebRtc" ? "manualWebRtc" : "mqttQuickJoin";
     const hostRequireApprovalFirstJoin = snapshotRaw.hostRequireApprovalFirstJoin !== false;
     const hostAutoApproveKnownRejoin = snapshotRaw.hostAutoApproveKnownRejoin !== false;
 
@@ -248,11 +255,11 @@ function normalizeLoadedSnapshot(snapshotRaw) {
         const hostApprovedGuestIds = normalizeApprovedGuestIds(
             snapshotRaw.hostApprovedGuestIds,
             localId,
-            session.players
+            session.players,
         );
         const hostPendingRejoinRequests = normalizePendingRejoinRequests(
             snapshotRaw.hostPendingRejoinRequests,
-            localId
+            localId,
         );
         return {
             role: "host",
@@ -267,7 +274,7 @@ function normalizeLoadedSnapshot(snapshotRaw) {
             currentView,
             roomId: roomId || localId,
             selectedVote,
-            session
+            session,
         };
     }
 
@@ -281,7 +288,7 @@ function normalizeLoadedSnapshot(snapshotRaw) {
         currentView,
         roomId,
         selectedVote,
-        guestRemoteState: normalizeGuestRemoteState(snapshotRaw.guestRemoteState)
+        guestRemoteState: normalizeGuestRemoteState(snapshotRaw.guestRemoteState),
     };
 }
 
@@ -324,12 +331,7 @@ export function loadSessionSnapshot() {
     }
 }
 
-export {
-    normalizeRoleView,
-    normalizeVote,
-    normalizeId,
-    normalizeLoadedSnapshot
-};
+export { normalizeId, normalizeLoadedSnapshot, normalizeRoleView, normalizeVote };
 
 export function clearSessionSnapshot() {
     const storage = getSessionStorage();

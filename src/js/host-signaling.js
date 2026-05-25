@@ -1,26 +1,26 @@
-import { state } from "./state.js";
-import { log } from "./log.js";
-import { decodeSignalCode, encodeSignalCode, validateSignalPayload } from "./signaling.js";
-import { compactFromDescription, descriptionFromCompact } from "./sdp.js";
-import {
-    attemptIceRestart,
-    closePeerEntry,
-    createPeerConnection,
-    logPeerConnectionDiagnostics,
-    waitForIceComplete
-} from "./webrtc.js";
-import { els, setSignalCodeDisplay, showNotice } from "./ui.js";
 import { upsertHostPlayer } from "./game.js";
-import { renderHostLobby } from "./render.js";
-import { saveSessionSnapshot } from "./persistence.js";
-import { RELAY_FALLBACK_DELAY_MS, sanitizeHostName } from "./host-shared.js";
 import {
     channelTransportType,
     onPeerChannelClose,
     onPeerTemporarilyDisconnected,
     setupHostDataChannel,
-    startHostRelayFallback
+    startHostRelayFallback,
 } from "./host-peers.js";
+import { RELAY_FALLBACK_DELAY_MS, sanitizeHostName } from "./host-shared.js";
+import { log } from "./log.js";
+import { saveSessionSnapshot } from "./persistence.js";
+import { renderHostLobby } from "./render.js";
+import { compactFromDescription, descriptionFromCompact } from "./sdp.js";
+import { decodeSignalCode, encodeSignalCode, validateSignalPayload } from "./signaling.js";
+import { state } from "./state.js";
+import { els, setSignalCodeDisplay, showNotice } from "./ui.js";
+import {
+    attemptIceRestart,
+    closePeerEntry,
+    createPeerConnection,
+    logPeerConnectionDiagnostics,
+    waitForIceComplete,
+} from "./webrtc.js";
 
 export async function onAcceptGuestCode() {
     if (!state.session || state.role !== "host") {
@@ -48,14 +48,20 @@ export async function onAcceptGuestCode() {
         log.info("host", "Guest code accepted", {
             guestId,
             guestName,
-            offerSdpLength: (offerDescription.sdp || "").length
+            offerSdpLength: (offerDescription.sdp || "").length,
         });
 
         await acceptGuestOffer(guestId, guestName, offerDescription);
         els.hostIncomingJoinCode.value = "";
     } catch (error) {
-        log.error("error", "Failed to accept guest code", { message: String(error.message || error) });
-        showNotice(els.hostLobbyNotice, "Could not accept guest code: " + String(error.message || error), "error");
+        log.error("error", "Failed to accept guest code", {
+            message: String(error.message || error),
+        });
+        showNotice(
+            els.hostLobbyNotice,
+            "Could not accept guest code: " + String(error.message || error),
+            "error",
+        );
     }
 }
 
@@ -74,7 +80,7 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
         name: guestName,
         pc: peerConnection,
         dc: null,
-        connected: false
+        connected: false,
     };
     let diagnosticsLogged = false;
     let restartTriggered = false;
@@ -83,7 +89,11 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
     const logDiagnosticsOnce = (trigger, failureState) => {
         if (diagnosticsLogged) return;
         diagnosticsLogged = true;
-        void logPeerConnectionDiagnostics(peerConnection, "host", { guestId, trigger, failureState });
+        void logPeerConnectionDiagnostics(peerConnection, "host", {
+            guestId,
+            trigger,
+            failureState,
+        });
     };
     const clearRelayFallbackTimer = () => {
         if (!relayFallbackTimer) return;
@@ -98,7 +108,7 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
         showNotice(
             els.hostLobbyNotice,
             "Direct path failed for " + peerEntry.name + ". Trying relay fallback...",
-            "warn"
+            "warn",
         );
         log.warn("host", "Host relay fallback starting", { guestId, reason });
     };
@@ -114,7 +124,7 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
     peerConnection.oniceconnectionstatechange = () => {
         log.info("webrtc", "Host ICE state", {
             guestId,
-            state: peerConnection.iceConnectionState
+            state: peerConnection.iceConnectionState,
         });
         if (peerConnection.iceConnectionState === "failed") {
             logDiagnosticsOnce("iceconnectionstatechange", "failed");
@@ -143,8 +153,10 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
                 if (restartTriggered) {
                     showNotice(
                         els.hostLobbyNotice,
-                        "Connection to " + peerEntry.name + " failed on direct path. Starting relay fallback shortly...",
-                        "warn"
+                        "Connection to " +
+                            peerEntry.name +
+                            " failed on direct path. Starting relay fallback shortly...",
+                        "warn",
                     );
                     relayFallbackTimer = setTimeout(() => {
                         triggerRelayFallback("post-ice-restart-delay");
@@ -168,7 +180,7 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
         f: state.localId,
         r: guestId,
         room: state.roomId || state.localId,
-        d: compactFromDescription(peerConnection.localDescription)
+        d: compactFromDescription(peerConnection.localDescription),
     };
     const responseCode = await encodeSignalCode(responsePayload);
     state.hostResponseCodeRaw = responseCode;
@@ -177,14 +189,18 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
         els.hostResponseCodeMeta,
         els.hostResponseCodeQuality,
         responseCode,
-        "No response code yet."
+        "No response code yet.",
     );
-    showNotice(els.hostLobbyNotice, "Accepted " + guestName + ". Copy response code and send it back.", "info");
+    showNotice(
+        els.hostLobbyNotice,
+        "Accepted " + guestName + ". Copy response code and send it back.",
+        "info",
+    );
     renderHostLobby();
     saveSessionSnapshot();
     log.info("host", "Answer created", {
         guestId,
         codeLength: responseCode.length,
-        iceGatheringState: peerConnection.iceGatheringState
+        iceGatheringState: peerConnection.iceGatheringState,
     });
 }

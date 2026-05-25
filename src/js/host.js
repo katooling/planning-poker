@@ -1,13 +1,3 @@
-export { configureHost } from "./host-shared.js";
-export {
-    broadcastMessageToGuests,
-    broadcastState,
-    onHostNewRound,
-    onHostRevealVotes,
-    onHostRoundTitleChange,
-    onHostStartGame,
-    startHostSession
-} from "./host-session.js";
 export {
     approvePendingRejoin,
     channelTransportType,
@@ -21,6 +11,16 @@ export {
     sendJson,
     setupHostDataChannel,
     startHostRecoveryRelayListener,
-    startHostRelayFallback
+    startHostRelayFallback,
 } from "./host-peers.js";
+export {
+    broadcastMessageToGuests,
+    broadcastState,
+    onHostNewRound,
+    onHostRevealVotes,
+    onHostRoundTitleChange,
+    onHostStartGame,
+    startHostSession,
+} from "./host-session.js";
+export { configureHost } from "./host-shared.js";
 export { acceptGuestOffer, onAcceptGuestCode } from "./host-signaling.js";

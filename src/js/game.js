@@ -1,7 +1,8 @@
-import { NUMERIC_VOTES, VOTE_VALUES, state } from "./state.js";
+// @ts-nocheck
+import { canGuestSendToHost, getGuestConnectionPresentation } from "./guest-connection-status.js";
 import { log } from "./log.js";
 import { saveSessionSnapshot } from "./persistence.js";
-import { canGuestSendToHost, getGuestConnectionPresentation } from "./guest-connection-status.js";
+import { NUMERIC_VOTES, state, VOTE_VALUES } from "./state.js";
 
 const STATS_PLACEHOLDER = "--";
 
@@ -26,8 +27,17 @@ export function setLocalVote(vote, deps) {
             const noticeText = presentation.online
                 ? voteNotice
                 : voteNotice + " Host updates may be delayed while connection recovers.";
-            deps.showNotice(deps.els.tableNotice, noticeText, presentation.online ? "info" : "warn", 1800);
-            log.info("game", "Vote sent", { role: "guest", vote, phase: state.guestConnectionPhase });
+            deps.showNotice(
+                deps.els.tableNotice,
+                noticeText,
+                presentation.online ? "info" : "warn",
+                1800,
+            );
+            log.info("game", "Vote sent", {
+                role: "guest",
+                vote,
+                phase: state.guestConnectionPhase,
+            });
         } else {
             const presentation = getGuestConnectionPresentation();
             const reconnectHint = presentation.text.includes("Reconnect")
@@ -36,9 +46,11 @@ export function setLocalVote(vote, deps) {
             deps.showNotice(
                 deps.els.tableNotice,
                 presentation.text + ". Vote was not sent." + reconnectHint,
-                "warn"
+                "warn",
             );
-            log.warn("game", "Vote skipped; guest channel unavailable", { phase: state.guestConnectionPhase });
+            log.warn("game", "Vote skipped; guest channel unavailable", {
+                phase: state.guestConnectionPhase,
+            });
         }
     }
 }
@@ -85,7 +97,7 @@ export function upsertHostPlayer(id, name, connected, sanitizeName) {
         name: "Guest",
         connected: false,
         vote: null,
-        isHost: false
+        isHost: false,
     };
     current.name = sanitizeName(name || current.name);
     current.connected = !!connected;
@@ -107,7 +119,7 @@ export function getHostPlayersAsArray(includeVotes) {
             name: player.name,
             connected: !!player.connected,
             isHost: !!player.isHost,
-            vote: includeVotes ? player.vote : null
+            vote: includeVotes ? player.vote : null,
         };
     });
     players.sort((a, b) => {
@@ -135,7 +147,7 @@ export function renderStatsValues(players, revealed) {
         median: numeric.length ? formatNumber(median(numeric)) : STATS_PLACEHOLDER,
         min: numeric.length ? String(numeric[0]) : STATS_PLACEHOLDER,
         max: numeric.length ? String(numeric[numeric.length - 1]) : STATS_PLACEHOLDER,
-        consensus: hasConsensus(voteValues) ? "Yes" : "No"
+        consensus: hasConsensus(voteValues) ? "Yes" : "No",
     };
 }
 
@@ -145,7 +157,7 @@ function createHiddenStatsValues() {
         median: STATS_PLACEHOLDER,
         min: STATS_PLACEHOLDER,
         max: STATS_PLACEHOLDER,
-        consensus: STATS_PLACEHOLDER
+        consensus: STATS_PLACEHOLDER,
     };
 }
 
@@ -155,7 +167,7 @@ function toRenderablePlayer(player, revealed, voted) {
         name: player.name,
         connected: !!player.connected,
         vote: revealed ? player.vote : null,
-        voted: !!voted
+        voted: !!voted,
     };
 }
 

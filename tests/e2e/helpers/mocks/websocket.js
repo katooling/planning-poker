@@ -38,10 +38,4 @@ function encodeUtf8String(value) {
     return output;
 }
 
-export {
-    encodeRemainingLength,
-    packet,
-    buildConnack,
-    buildSuback,
-    encodeUtf8String
-};
+export { buildConnack, buildSuback, encodeRemainingLength, encodeUtf8String, packet };

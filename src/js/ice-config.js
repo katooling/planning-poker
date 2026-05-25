@@ -7,7 +7,7 @@ export const DEFAULT_STUN_SERVERS = [
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun.cloudflare.com:3478" },
     { urls: "stun:stun.services.mozilla.com:3478" },
-    { urls: "stun:global.stun.twilio.com:3478" }
+    { urls: "stun:global.stun.twilio.com:3478" },
 ];
 
 function toIceServer(rawServer) {
@@ -41,7 +41,9 @@ export function loadUserIceServers() {
         const parsed = JSON.parse(raw);
         return normalizeIceServers(parsed);
     } catch (error) {
-        log.warn("webrtc", "Failed to load ICE settings", { message: String(error.message || error) });
+        log.warn("webrtc", "Failed to load ICE settings", {
+            message: String(error.message || error),
+        });
         return [];
     }
 }
@@ -51,7 +53,9 @@ export function saveUserIceServers(servers) {
     try {
         localStorage.setItem(STORAGE_ICE_KEY, JSON.stringify(normalized));
     } catch (error) {
-        log.warn("webrtc", "Failed to save ICE settings", { message: String(error.message || error) });
+        log.warn("webrtc", "Failed to save ICE settings", {
+            message: String(error.message || error),
+        });
     }
     return normalized;
 }
@@ -70,7 +74,10 @@ export function parseIceServerInput(text) {
         const parts = line.split("|").map((part) => part.trim());
         if (!parts[0]) continue;
         const urls = parts[0].includes(",")
-            ? parts[0].split(",").map((url) => url.trim()).filter(Boolean)
+            ? parts[0]
+                  .split(",")
+                  .map((url) => url.trim())
+                  .filter(Boolean)
             : parts[0];
         const server = { urls };
         if (parts[1]) server.username = parts[1];
@@ -82,11 +89,13 @@ export function parseIceServerInput(text) {
 
 export function formatIceServersForInput(servers) {
     const normalized = normalizeIceServers(servers);
-    return normalized.map((server) => {
-        const urls = Array.isArray(server.urls) ? server.urls.join(", ") : server.urls;
-        const username = server.username || "";
-        const credential = server.credential || "";
-        if (!username && !credential) return urls;
-        return [urls, username, credential].join(" | ");
-    }).join("\n");
+    return normalized
+        .map((server) => {
+            const urls = Array.isArray(server.urls) ? server.urls.join(", ") : server.urls;
+            const username = server.username || "";
+            const credential = server.credential || "";
+            if (!username && !credential) return urls;
+            return [urls, username, credential].join(" | ");
+        })
+        .join("\n");
 }

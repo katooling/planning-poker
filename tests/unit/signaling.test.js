@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { decodeSignalCode, encodeSignalCode, validateSignalPayload } from "../../src/js/signaling.js";
+import {
+    decodeSignalCode,
+    encodeSignalCode,
+    validateSignalPayload,
+} from "../../src/js/signaling.js";
 
 describe("signaling codes", () => {
     it("validates expected payload type", () => {
-        expect(() => validateSignalPayload({ v: 1, f: "a", d: { t: "offer" } }, "offer")).not.toThrow();
-        expect(() => validateSignalPayload({ v: 1, f: "a", d: { t: "answer" } }, "offer")).toThrow(/Expected offer/);
+        expect(() =>
+            validateSignalPayload({ v: 1, f: "a", d: { t: "offer" } }, "offer"),
+        ).not.toThrow();
+        expect(() => validateSignalPayload({ v: 1, f: "a", d: { t: "answer" } }, "offer")).toThrow(
+            /Expected offer/,
+        );
     });
 
     it("round-trips uncompressed payloads when compression is unavailable", async () => {

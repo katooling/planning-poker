@@ -1,14 +1,17 @@
-import { state } from "./state.js";
-import { log } from "./log.js";
-import { els, showNotice } from "./ui.js";
+/** @import { GameMessage } from "./message-types.js"; */
+
 import { hostApplyVote, removeHostPlayer, upsertHostPlayer } from "./game.js";
-import { renderHostLobby, renderTable } from "./render.js";
+import { broadcastState } from "./host-session.js";
+import { KICK_DISCONNECT_DELAY_MS, PENDING_REJOIN_MAX, sanitizeHostName } from "./host-shared.js";
+import { log } from "./log.js";
+import { sendJson } from "./messaging.js";
 import { createMqttRelayChannel } from "./mqtt-relay.js";
 import { saveSessionSnapshot } from "./persistence.js";
+import { renderHostLobby, renderTable } from "./render.js";
+import { state } from "./state.js";
+import { els, showNotice } from "./ui.js";
 import { closePeerEntry } from "./webrtc.js";
-import { KICK_DISCONNECT_DELAY_MS, PENDING_REJOIN_MAX, sanitizeHostName } from "./host-shared.js";
-import { broadcastState } from "./host-session.js";
-import { sendJson } from "./messaging.js";
+
 export { sendJson } from "./messaging.js";
 
 const HOST_RECOVERY_RETRY_BASE_MS = 1000;
@@ -48,17 +51,19 @@ export function startHostRecoveryRelayListener() {
             if (state.hostRecoveryRelay !== relayChannel) return;
             lastClosedRecoveryRelay = relayChannel;
             state.hostRecoveryRelay = null;
-            const reason = errorInfo && errorInfo.reason ? errorInfo.reason : "unknown";
+            const reason = errorInfo?.reason ? errorInfo.reason : "unknown";
             log.warn("host", "Host recovery relay failed", { roomId, reason });
             scheduleHostRecoveryRelayRetry("failure-" + reason, true);
             if (state.currentView === "hostLobby") {
                 showNotice(
                     els.hostLobbyNotice,
-                    "Auto-reconnect listener failed (" + reason + "). Manual join code flow still works.",
-                    "warn"
+                    "Auto-reconnect listener failed (" +
+                        reason +
+                        "). Manual join code flow still works.",
+                    "warn",
                 );
             }
-        }
+        },
     });
     state.hostRecoveryRelay = relayChannel;
 }
@@ -70,7 +75,7 @@ export function approvePendingRejoin(guestId) {
         showNotice(
             els.hostLobbyNotice,
             "Recovery relay is not ready. Ask guest to retry shortly.",
-            "warn"
+            "warn",
         );
         return;
     }
@@ -91,7 +96,11 @@ export function rejectPendingRejoin(guestId) {
     clearPendingRejoin(guestId);
     const relayChannel = state.hostRecoveryRelay;
     if (relayChannel && relayChannel.readyState === "open") {
-        sendJson(relayChannel, { t: "rejoinReject", to: guestId, reason: "Host approval required." });
+        sendJson(relayChannel, {
+            t: "rejoinReject",
+            to: guestId,
+            reason: "Host approval required.",
+        });
     }
     renderHostLobby();
     renderTable();
@@ -108,13 +117,13 @@ export function onKickGuest(guestId) {
     if (!player && !peer) return;
     forgetApprovedGuestId(normalizedGuestId);
 
-    const guestName = sanitizeHostName((player && player.name) || (peer && peer.name) || "Guest");
+    const guestName = sanitizeHostName(player?.name || peer?.name || "Guest");
     let delayedDisconnect = false;
-    if (peer && peer.dc && peer.dc.readyState === "open") {
+    if (peer?.dc && peer.dc.readyState === "open") {
         sendJson(peer.dc, {
             t: "kicked",
             to: normalizedGuestId,
-            reason: "Removed by host."
+            reason: "Removed by host.",
         });
         const kickedChannel = peer.dc;
         delayedDisconnect = true;
@@ -221,7 +230,11 @@ export function startHostRelayFallback(guestId) {
         onOpen: (channel) => {
             entry.dc = channel;
             onPeerChannelOpen(guestId, channel);
-            showNotice(els.hostLobbyNotice, "Relay fallback connected for " + entry.name + ".", "info");
+            showNotice(
+                els.hostLobbyNotice,
+                "Relay fallback connected for " + entry.name + ".",
+                "info",
+            );
         },
         onClose: () => {
             onPeerChannelClose(guestId, relayChannel);
@@ -231,19 +244,24 @@ export function startHostRelayFallback(guestId) {
             onPeerChannelMessage(guestId, payload, relayChannel);
         },
         onFailure: (errorInfo) => {
-            const reason = errorInfo && errorInfo.reason ? errorInfo.reason : "unknown";
+            const reason = errorInfo?.reason ? errorInfo.reason : "unknown";
             showNotice(
                 els.hostLobbyNotice,
-                "Relay fallback failed (" + reason + "). Ask " + entry.name + " to regenerate join code or try another network.",
-                "error"
+                "Relay fallback failed (" +
+                    reason +
+                    "). Ask " +
+                    entry.name +
+                    " to regenerate join code or try another network.",
+                "error",
             );
-        }
+        },
     });
     entry.dc = relayChannel;
 }
 
 export function handleHostInboundMessage(guestId, rawData) {
     if (!state.session) return;
+    /** @type {GameMessage | null} */
     let message;
     try {
         message = JSON.parse(rawData);
@@ -274,14 +292,16 @@ export function handleHostInboundMessage(guestId, rawData) {
 
     if (message.t === "presence") {
         const peer = state.hostPeers.get(guestId);
-        const nextName = sanitizeHostName(message.n || (peer ? peer.name : getKnownGuestName(guestId)));
+        const nextName = sanitizeHostName(
+            message.n || (peer ? peer.name : getKnownGuestName(guestId)),
+        );
         let changed = false;
         if (peer && peer.name !== nextName) {
             peer.name = nextName;
             changed = true;
         }
         const player = state.session.players[guestId];
-        const wasConnected = !!(player && player.connected);
+        const wasConnected = !!player?.connected;
         const previousName = player ? player.name : null;
         upsertHostPlayer(guestId, nextName, true, sanitizeHostName);
         if (!wasConnected || previousName !== nextName) {
@@ -325,7 +345,11 @@ export function onHostRecoveryRelayMessage(rawData, fromGuestId, relayChannel) {
 
         if (isKnownGuestId(guestId) && state.hostAutoApproveKnownRejoin) {
             attachRelayGuest(guestId, guestName, relayChannel);
-            sendJson(relayChannel, { t: "rejoinAck", to: guestId, room: state.roomId || state.localId });
+            sendJson(relayChannel, {
+                t: "rejoinAck",
+                to: guestId,
+                room: state.roomId || state.localId,
+            });
             broadcastState();
             renderHostLobby();
             renderTable();
@@ -333,7 +357,11 @@ export function onHostRecoveryRelayMessage(rawData, fromGuestId, relayChannel) {
         }
         if (!isKnownGuestId(guestId) && !state.hostRequireApprovalFirstJoin) {
             attachRelayGuest(guestId, guestName, relayChannel);
-            sendJson(relayChannel, { t: "rejoinAck", to: guestId, room: state.roomId || state.localId });
+            sendJson(relayChannel, {
+                t: "rejoinAck",
+                to: guestId,
+                room: state.roomId || state.localId,
+            });
             broadcastState();
             renderHostLobby();
             renderTable();
@@ -363,24 +391,25 @@ function queuePendingRejoin(guestId, guestName) {
         state.hostPendingRejoinRequests.push({
             id: guestId,
             name: guestName,
-            requestedAt: Date.now()
+            requestedAt: Date.now(),
         });
         if (state.hostPendingRejoinRequests.length > PENDING_REJOIN_MAX) {
-            state.hostPendingRejoinRequests = state.hostPendingRejoinRequests
-                .slice(-PENDING_REJOIN_MAX);
+            state.hostPendingRejoinRequests = state.hostPendingRejoinRequests.slice(
+                -PENDING_REJOIN_MAX,
+            );
         }
     }
     if (state.currentView === "hostLobby") {
         showNotice(
             els.hostLobbyNotice,
             "Rejoin request from " + guestName + ". Approve or reject.",
-            "info"
+            "info",
         );
     } else if (state.currentView === "table") {
         showNotice(
             els.tableNotice,
             "Rejoin request from " + guestName + ". Return to lobby to review.",
-            "info"
+            "info",
         );
     }
     saveSessionSnapshot();
@@ -388,7 +417,7 @@ function queuePendingRejoin(guestId, guestName) {
 
 function ensureRelayPeerEntry(guestId, relayChannel) {
     const existing = state.hostPeers.get(guestId);
-    if (existing && existing.dc && existing.dc !== relayChannel) {
+    if (existing?.dc && existing.dc !== relayChannel) {
         closePeerEntry(existing);
     }
 
@@ -397,7 +426,7 @@ function ensureRelayPeerEntry(guestId, relayChannel) {
         name: getKnownGuestName(guestId),
         pc: null,
         dc: relayChannel,
-        connected: false
+        connected: false,
     };
     current.id = guestId;
     current.name = sanitizeHostName(current.name || getKnownGuestName(guestId));
@@ -427,15 +456,19 @@ function markPeerConnected(guestId, preferredName) {
 }
 
 function clearPendingRejoin(guestId) {
-    if (!Array.isArray(state.hostPendingRejoinRequests) || !state.hostPendingRejoinRequests.length) {
+    if (
+        !Array.isArray(state.hostPendingRejoinRequests) ||
+        !state.hostPendingRejoinRequests.length
+    ) {
         return;
     }
-    state.hostPendingRejoinRequests = state.hostPendingRejoinRequests
-        .filter((entry) => entry.id !== guestId);
+    state.hostPendingRejoinRequests = state.hostPendingRejoinRequests.filter(
+        (entry) => entry.id !== guestId,
+    );
 }
 
 function getKnownGuestName(guestId) {
-    if (!state.session || !state.session.players || !state.session.players[guestId]) {
+    if (!state.session?.players?.[guestId]) {
         return "Guest";
     }
     return state.session.players[guestId].name || "Guest";
@@ -486,15 +519,13 @@ function scheduleHostRecoveryRelayRetry(reason, immediate = false) {
     if (state.hostRecoveryRelay && state.hostRecoveryRelay.readyState === "connecting") return;
 
     const baseDelay = Number(window.__PP_TEST_HOST_RECOVERY_RETRY_MS);
-    const retryBaseMs = Number.isFinite(baseDelay) && baseDelay >= 0
-        ? Math.floor(baseDelay)
-        : HOST_RECOVERY_RETRY_BASE_MS;
+    const retryBaseMs =
+        Number.isFinite(baseDelay) && baseDelay >= 0
+            ? Math.floor(baseDelay)
+            : HOST_RECOVERY_RETRY_BASE_MS;
     const delayMs = immediate
         ? 0
-        : Math.min(
-        retryBaseMs * (2 ** hostRecoveryRetryAttempts),
-        HOST_RECOVERY_RETRY_MAX_MS
-    );
+        : Math.min(retryBaseMs * 2 ** hostRecoveryRetryAttempts, HOST_RECOVERY_RETRY_MAX_MS);
     hostRecoveryRetryAttempts += 1;
     hostRecoveryRetryTimer = setTimeout(() => {
         hostRecoveryRetryTimer = null;
@@ -504,7 +535,7 @@ function scheduleHostRecoveryRelayRetry(reason, immediate = false) {
     log.info("host", "Scheduling host recovery relay reconnect", {
         reason,
         attempt: hostRecoveryRetryAttempts,
-        delayMs
+        delayMs,
     });
 }
 
@@ -513,7 +544,7 @@ function rebindRelayPeersToRecoveryChannel(relayChannel, previousRecoveryRelay) 
     if (!previousRecoveryRelay) return;
     let rebound = 0;
     for (const peer of state.hostPeers.values()) {
-        if (!peer || !peer.dc) continue;
+        if (!peer?.dc) continue;
         if (peer.dc !== previousRecoveryRelay) continue;
         peer.dc = relayChannel;
         rebound += 1;

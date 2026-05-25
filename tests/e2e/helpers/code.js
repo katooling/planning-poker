@@ -8,8 +8,11 @@ export async function readCode(locator) {
 }
 
 export async function decodeSignalCodeInPage(page, code) {
-    return page.evaluate(async ({ codeValue }) => {
-        const { decodeSignalCode } = window.__planningPokerE2E;
-        return decodeSignalCode(codeValue);
-    }, { codeValue: code });
+    return page.evaluate(
+        async ({ codeValue }) => {
+            const { decodeSignalCode } = window.__planningPokerE2E;
+            return decodeSignalCode(codeValue);
+        },
+        { codeValue: code },
+    );
 }

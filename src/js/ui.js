@@ -1,12 +1,13 @@
-import { state } from "./state.js";
 import { log } from "./log.js";
+// @ts-nocheck
+import { state } from "./state.js";
 
 export const els = {
     views: {
         home: document.getElementById("homeView"),
         hostLobby: document.getElementById("hostLobbyView"),
         guestConnect: document.getElementById("guestConnectView"),
-        table: document.getElementById("tableView")
+        table: document.getElementById("tableView"),
     },
     displayNameInput: document.getElementById("displayNameInput"),
     createRoomBtn: document.getElementById("createRoomBtn"),
@@ -88,11 +89,15 @@ export const els = {
     defaultIceServersList: document.getElementById("defaultIceServersList"),
     customIceServersInput: document.getElementById("customIceServersInput"),
     connectionStrategySelect: document.getElementById("connectionStrategySelect"),
-    hostRequireApprovalFirstJoinCheckbox: document.getElementById("hostRequireApprovalFirstJoinCheckbox"),
-    hostAutoApproveKnownRejoinCheckbox: document.getElementById("hostAutoApproveKnownRejoinCheckbox"),
+    hostRequireApprovalFirstJoinCheckbox: document.getElementById(
+        "hostRequireApprovalFirstJoinCheckbox",
+    ),
+    hostAutoApproveKnownRejoinCheckbox: document.getElementById(
+        "hostAutoApproveKnownRejoinCheckbox",
+    ),
     iceSettingsNotice: document.getElementById("iceSettingsNotice"),
     iceSettingsCancelBtn: document.getElementById("iceSettingsCancelBtn"),
-    iceSettingsSaveBtn: document.getElementById("iceSettingsSaveBtn")
+    iceSettingsSaveBtn: document.getElementById("iceSettingsSaveBtn"),
 };
 
 let onTableViewActivated = null;
@@ -161,7 +166,7 @@ export function showNotice(element, text, type, timeoutMs) {
 export async function copyTextWithFeedback(text, button, doneLabel) {
     if (!text) return;
     let copied = false;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (navigator.clipboard?.writeText) {
         try {
             await navigator.clipboard.writeText(text);
             copied = true;
@@ -207,7 +212,15 @@ export function escapeHtml(text) {
     return div.innerHTML;
 }
 
-export function setSignalCodeDisplay(displayElement, metaElement, qualityElement, rawCode, emptyText, emptyMetaText, emptyQualityText) {
+export function setSignalCodeDisplay(
+    displayElement,
+    metaElement,
+    qualityElement,
+    rawCode,
+    emptyText,
+    emptyMetaText,
+    emptyQualityText,
+) {
     const code = String(rawCode || "").trim();
     if (!code) {
         displayElement.textContent = emptyText;
@@ -233,7 +246,8 @@ export function setSignalCodeDisplay(displayElement, metaElement, qualityElement
 
     if (qualityElement) {
         const shareability = getCodeShareability(code.length);
-        qualityElement.textContent = "Shareability: " + shareability.label + " - " + shareability.helpText;
+        qualityElement.textContent =
+            "Shareability: " + shareability.label + " - " + shareability.helpText;
         qualityElement.classList.remove("quality-short", "quality-medium", "quality-long");
         qualityElement.classList.add(shareability.className);
     }
@@ -254,19 +268,19 @@ export function getCodeShareability(codeLength) {
         return {
             label: "Easy to share",
             helpText: "short code, low copy risk",
-            className: "quality-short"
+            className: "quality-short",
         };
     }
     if (codeLength <= 700) {
         return {
             label: "Okay to share",
             helpText: "medium length, still manageable",
-            className: "quality-medium"
+            className: "quality-medium",
         };
     }
     return {
         label: "Might be tricky",
         helpText: "long code, double-check full paste",
-        className: "quality-long"
+        className: "quality-long",
     };
 }

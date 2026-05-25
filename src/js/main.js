@@ -1,13 +1,61 @@
 import "../styles.css";
-import { state, STORAGE_NAME_KEY } from "./state.js";
-import { log } from "./log.js";
+import { loadConnectionSettings, saveConnectionSettings } from "./connection-settings.js";
+import { getActiveStrategy } from "./connection-strategies/index.js";
+import { installE2EBridge } from "./e2e-bridge.js";
+import { setLocalVote } from "./game.js";
+import {
+    connectGuestByRoomCode,
+    sendJson as guestSendJson,
+    notifyGuestLeaving,
+    onGuestConnectWithResponseCode,
+    onRegenerateGuestOffer,
+    startGuestSession,
+    triggerGuestAutoRejoin,
+} from "./guest.js";
+import { canGuestSendToHost } from "./guest-connection-status.js";
+import {
+    approvePendingRejoin,
+    broadcastState,
+    configureHost,
+    onAcceptGuestCode,
+    onHostNewRound,
+    onHostRevealVotes,
+    onHostRoundTitleChange,
+    onHostStartGame,
+    onKickGuest,
+    rejectPendingRejoin,
+    startHostRecoveryRelayListener,
+    startHostSession,
+} from "./host.js";
 import {
     DEFAULT_STUN_SERVERS,
     formatIceServersForInput,
     loadUserIceServers,
     parseIceServerInput,
-    saveUserIceServers
+    saveUserIceServers,
 } from "./ice-config.js";
+import {
+    activateJoinLinkLanding,
+    cancelJoinLinkFlow,
+    getJoinLinkConnectParams,
+    shouldUseJoinLinkFlow,
+    showJoinLinkConnectingUi,
+} from "./join-link.js";
+import { log } from "./log.js";
+import { clearSessionSnapshot, loadSessionSnapshot, saveSessionSnapshot } from "./persistence.js";
+import {
+    renderConnectionStrategySections,
+    renderHostLobby,
+    renderTable,
+    renderVotePalette,
+    setVoteSelectHandler,
+} from "./render.js";
+import { sanitizeText } from "./sanitize.js";
+import {
+    EMPTY_GUEST_JOIN_CODE_DISPLAY,
+    EMPTY_HOST_RESPONSE_CODE_DISPLAY,
+} from "./signal-display-presets.js";
+import { STORAGE_NAME_KEY, state } from "./state.js";
 import {
     copyTextWithFeedback,
     els,
@@ -18,54 +66,9 @@ import {
     showNotice,
     showView,
     updateConnectionStatus,
-    updateCurrentUserBadge
+    updateCurrentUserBadge,
 } from "./ui.js";
-import { getActiveStrategy } from "./connection-strategies/index.js";
-import { loadConnectionSettings, saveConnectionSettings } from "./connection-settings.js";
-import {
-    renderConnectionStrategySections,
-    renderHostLobby,
-    renderTable,
-    renderVotePalette,
-    setVoteSelectHandler
-} from "./render.js";
-import {
-    activateJoinLinkLanding,
-    cancelJoinLinkFlow,
-    getJoinLinkConnectParams,
-    shouldUseJoinLinkFlow,
-    showJoinLinkConnectingUi
-} from "./join-link.js";
-import { setLocalVote } from "./game.js";
-import { installE2EBridge } from "./e2e-bridge.js";
-import {
-    configureHost,
-    broadcastState,
-    onAcceptGuestCode,
-    onKickGuest,
-    onHostNewRound,
-    onHostRoundTitleChange,
-    onHostRevealVotes,
-    onHostStartGame,
-    approvePendingRejoin,
-    rejectPendingRejoin,
-    startHostRecoveryRelayListener,
-    startHostSession
-} from "./host.js";
-import { canGuestSendToHost } from "./guest-connection-status.js";
-import {
-    onGuestConnectWithResponseCode,
-    connectGuestByRoomCode,
-    notifyGuestLeaving,
-    onRegenerateGuestOffer,
-    sendJson as guestSendJson,
-    startGuestSession,
-    triggerGuestAutoRejoin
-} from "./guest.js";
 import { shutdownGuest, shutdownHost } from "./webrtc.js";
-import { clearSessionSnapshot, loadSessionSnapshot, saveSessionSnapshot } from "./persistence.js";
-import { EMPTY_GUEST_JOIN_CODE_DISPLAY, EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
-import { sanitizeText } from "./sanitize.js";
 
 init();
 
@@ -99,7 +102,7 @@ function init() {
         EMPTY_GUEST_JOIN_CODE_DISPLAY.rawCode,
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyText,
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyMetaText,
-        EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText
+        EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText,
     );
     setSignalCodeDisplay(
         els.hostResponseCode,
@@ -108,7 +111,7 @@ function init() {
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.rawCode,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyText,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyMetaText,
-        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText
+        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText,
     );
 
     const restored = restoreSessionFromSnapshot(loadSessionSnapshot());
@@ -121,7 +124,7 @@ function init() {
     installE2EBridge();
     log.info("init", "Application initialized", {
         restoredName: state.displayName || null,
-        restoredSession: restored ? state.role : null
+        restoredSession: restored ? state.role : null,
     });
 }
 
@@ -165,7 +168,11 @@ function wireHostEvents() {
         });
     }
     els.copyHostResponseCodeBtn.addEventListener("click", async () => {
-        await copyTextWithFeedback(state.hostResponseCodeRaw, els.copyHostResponseCodeBtn, "Copied");
+        await copyTextWithFeedback(
+            state.hostResponseCodeRaw,
+            els.copyHostResponseCodeBtn,
+            "Copied",
+        );
     });
     els.copyHostResponseCodeFormattedBtn.addEventListener("click", async () => {
         const formatted = formatSignalCodeForDisplay(state.hostResponseCodeRaw);
@@ -179,21 +186,30 @@ function wireHostEvents() {
     });
     if (els.copyHostRoomCodeBtn) {
         els.copyHostRoomCodeBtn.addEventListener("click", async () => {
-            await copyTextWithFeedback(String(state.roomId || state.localId || ""), els.copyHostRoomCodeBtn, "Copied");
+            await copyTextWithFeedback(
+                String(state.roomId || state.localId || ""),
+                els.copyHostRoomCodeBtn,
+                "Copied",
+            );
         });
     }
     if (els.copyHostJoinLinkBtn) {
         els.copyHostJoinLinkBtn.addEventListener("click", async () => {
             const roomCode = String(state.roomId || state.localId || "");
             const joinUrl = roomCode
-                ? (window.location.origin + window.location.pathname + "?room=" + encodeURIComponent(roomCode))
+                ? window.location.origin +
+                  window.location.pathname +
+                  "?room=" +
+                  encodeURIComponent(roomCode)
                 : "";
             await copyTextWithFeedback(joinUrl, els.copyHostJoinLinkBtn, "Copied");
         });
     }
     if (els.hostRoomPinInput) {
         els.hostRoomPinInput.addEventListener("input", () => {
-            state.hostRoomPin = String(els.hostRoomPinInput.value || "").trim().slice(0, 20);
+            state.hostRoomPin = String(els.hostRoomPinInput.value || "")
+                .trim()
+                .slice(0, 20);
             saveSessionSnapshot();
         });
     }
@@ -213,7 +229,7 @@ function wireGuestEvents() {
             }
             connectGuestByRoomCode(
                 els.guestRoomCodeInput ? els.guestRoomCodeInput.value : "",
-                els.guestRoomPinInput ? els.guestRoomPinInput.value : ""
+                els.guestRoomPinInput ? els.guestRoomPinInput.value : "",
             );
         });
     }
@@ -254,7 +270,7 @@ function createVoteDeps() {
         sendJson: guestSendJson,
         broadcastState,
         renderTable,
-        renderHostLobby
+        renderHostLobby,
     };
 }
 
@@ -293,9 +309,11 @@ function wireSettingsEvents() {
 function wireKeyboardEvents() {
     document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {
-            if (state.currentView === "home"
-                && state.guestJoinContext === "joinLink"
-                && state.guestJoinPhase !== "form") {
+            if (
+                state.currentView === "home" &&
+                state.guestJoinContext === "joinLink" &&
+                state.guestJoinPhase !== "form"
+            ) {
                 cancelJoinLinkFlow();
                 return;
             }
@@ -330,7 +348,7 @@ function wireKeyboardEvents() {
                 event.preventDefault();
                 connectGuestByRoomCode(
                     els.guestRoomCodeInput ? els.guestRoomCodeInput.value : "",
-                    els.guestRoomPinInput ? els.guestRoomPinInput.value : ""
+                    els.guestRoomPinInput ? els.guestRoomPinInput.value : "",
                 );
             }
         }
@@ -339,12 +357,16 @@ function wireKeyboardEvents() {
 
 function openIceSettingsDialog() {
     if (!els.iceSettingsDialog || typeof els.iceSettingsDialog.showModal !== "function") {
-        showNotice(els.homeNotice, "Connection settings are not supported in this browser.", "warn");
+        showNotice(
+            els.homeNotice,
+            "Connection settings are not supported in this browser.",
+            "warn",
+        );
         return;
     }
-    const defaultLines = DEFAULT_STUN_SERVERS
-        .map((server) => Array.isArray(server.urls) ? server.urls.join(", ") : server.urls)
-        .join("\n");
+    const defaultLines = DEFAULT_STUN_SERVERS.map((server) =>
+        Array.isArray(server.urls) ? server.urls.join(", ") : server.urls,
+    ).join("\n");
     els.defaultIceServersList.textContent = defaultLines;
     els.customIceServersInput.value = formatIceServersForInput(loadUserIceServers());
     const savedConnectionSettings = loadConnectionSettings();
@@ -352,10 +374,12 @@ function openIceSettingsDialog() {
         els.connectionStrategySelect.value = savedConnectionSettings.strategy;
     }
     if (els.hostRequireApprovalFirstJoinCheckbox) {
-        els.hostRequireApprovalFirstJoinCheckbox.checked = savedConnectionSettings.hostRequireApprovalFirstJoin;
+        els.hostRequireApprovalFirstJoinCheckbox.checked =
+            savedConnectionSettings.hostRequireApprovalFirstJoin;
     }
     if (els.hostAutoApproveKnownRejoinCheckbox) {
-        els.hostAutoApproveKnownRejoinCheckbox.checked = savedConnectionSettings.hostAutoApproveKnownRejoin;
+        els.hostAutoApproveKnownRejoinCheckbox.checked =
+            savedConnectionSettings.hostAutoApproveKnownRejoin;
     }
     showNotice(els.iceSettingsNotice, "", "info");
     els.iceSettingsDialog.showModal();
@@ -365,13 +389,15 @@ function onSaveIceSettings() {
     const parsedServers = parseIceServerInput(els.customIceServersInput.value);
     saveUserIceServers(parsedServers);
     const savedConnectionSettings = saveConnectionSettings({
-        strategy: els.connectionStrategySelect ? els.connectionStrategySelect.value : state.connectionStrategy,
+        strategy: els.connectionStrategySelect
+            ? els.connectionStrategySelect.value
+            : state.connectionStrategy,
         hostRequireApprovalFirstJoin: els.hostRequireApprovalFirstJoinCheckbox
             ? !!els.hostRequireApprovalFirstJoinCheckbox.checked
             : state.hostRequireApprovalFirstJoin,
         hostAutoApproveKnownRejoin: els.hostAutoApproveKnownRejoinCheckbox
             ? !!els.hostAutoApproveKnownRejoinCheckbox.checked
-            : state.hostAutoApproveKnownRejoin
+            : state.hostAutoApproveKnownRejoin,
     });
     state.connectionStrategy = savedConnectionSettings.strategy;
     state.hostRequireApprovalFirstJoin = savedConnectionSettings.hostRequireApprovalFirstJoin;
@@ -387,7 +413,8 @@ function getCurrentNoticeElement() {
     if (state.currentView === "hostLobby") return els.hostLobbyNotice;
     if (state.currentView === "guestConnect") return els.guestConnectNotice;
     if (state.currentView === "table") return els.tableNotice;
-    if (state.currentView === "home" && state.guestJoinContext === "joinLink") return els.joinLinkNotice;
+    if (state.currentView === "home" && state.guestJoinContext === "joinLink")
+        return els.joinLinkNotice;
     return els.homeNotice;
 }
 
@@ -413,7 +440,7 @@ function onJoinRoom() {
             activeStrategy.startGuest(name, {
                 forJoinLink: true,
                 roomCode: connect.roomCode,
-                pin: connect.pin
+                pin: connect.pin,
             });
             showJoinLinkConnectingUi();
             void connectGuestByRoomCode(connect.roomCode, connect.pin, { source: "joinLink" });
@@ -446,13 +473,21 @@ function onLeaveOrBack() {
         renderConnectionStrategySections();
         state.guestAutoRejoinEnabled = true;
         if (state.connectionStrategy === "manualWebRtc") {
-            showNotice(els.guestConnectNotice, "Session restored. Share a fresh join code with host to reconnect.", "info");
+            showNotice(
+                els.guestConnectNotice,
+                "Session restored. Share a fresh join code with host to reconnect.",
+                "info",
+            );
             void onRegenerateGuestOffer();
         } else {
             if (els.guestRoomCodeInput && state.roomId) {
                 els.guestRoomCodeInput.value = state.roomId;
             }
-            showNotice(els.guestConnectNotice, "Session restored. Retrying relay reconnect...", "info");
+            showNotice(
+                els.guestConnectNotice,
+                "Session restored. Retrying relay reconnect...",
+                "info",
+            );
             triggerGuestAutoRejoin("reconnect-button");
         }
         saveSessionSnapshot();
@@ -496,7 +531,8 @@ function restoreSessionFromSnapshot(snapshot) {
     if (!snapshot) return false;
 
     state.localId = snapshot.localId;
-    state.connectionStrategy = snapshot.connectionStrategy === "manualWebRtc" ? "manualWebRtc" : state.connectionStrategy;
+    state.connectionStrategy =
+        snapshot.connectionStrategy === "manualWebRtc" ? "manualWebRtc" : state.connectionStrategy;
     state.hostRequireApprovalFirstJoin = snapshot.hostRequireApprovalFirstJoin !== false;
     state.hostAutoApproveKnownRejoin = snapshot.hostAutoApproveKnownRejoin !== false;
     if (snapshot.displayName) {
@@ -545,7 +581,7 @@ function restoreHostSnapshot(snapshot) {
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.rawCode,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyText,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyMetaText,
-        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText
+        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText,
     );
     renderHostLobby();
     startHostRecoveryRelayListener();
@@ -556,14 +592,14 @@ function restoreHostSnapshot(snapshot) {
         showNotice(
             els.tableNotice,
             "Session restored. Waiting for guests to auto-rejoin. Manual code exchange remains available.",
-            "info"
+            "info",
         );
     } else {
         showView("hostLobby");
         showNotice(
             els.hostLobbyNotice,
             "Session restored. Guests can auto-rejoin; manual code exchange remains available.",
-            "info"
+            "info",
         );
     }
     saveSessionSnapshot();
@@ -594,12 +630,13 @@ function restoreGuestSnapshot(snapshot) {
         EMPTY_GUEST_JOIN_CODE_DISPLAY.rawCode,
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyText,
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyMetaText,
-        EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText
+        EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText,
     );
     state.guestConnectionPhase = "offline";
     updateConnectionStatus(false, "Disconnected");
 
-    const shouldRestoreGuestTable = snapshot.currentView === "table" && (snapshot.guestRemoteState || snapshot.roomId);
+    const shouldRestoreGuestTable =
+        snapshot.currentView === "table" && (snapshot.guestRemoteState || snapshot.roomId);
     if (shouldRestoreGuestTable) {
         showView("table");
         renderTable();
@@ -608,7 +645,11 @@ function restoreGuestSnapshot(snapshot) {
     } else {
         showView("guestConnect");
         renderConnectionStrategySections();
-        showNotice(els.guestConnectNotice, "Session restored. Rejoin with room code or manual fallback.", "info");
+        showNotice(
+            els.guestConnectNotice,
+            "Session restored. Rejoin with room code or manual fallback.",
+            "info",
+        );
         if (els.guestRoomCodeInput && state.roomId) {
             els.guestRoomCodeInput.value = state.roomId;
         }
@@ -642,4 +683,3 @@ export function loadStoredDisplayName() {
         return "";
     }
 }
-

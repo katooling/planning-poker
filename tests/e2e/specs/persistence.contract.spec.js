@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import { openHome } from "../helpers/index.js";
 
 function hostSnapshot(overrides = {}) {
@@ -22,11 +22,11 @@ function hostSnapshot(overrides = {}) {
                     name: "Host Contract",
                     connected: true,
                     vote: "5",
-                    isHost: true
-                }
-            }
+                    isHost: true,
+                },
+            },
         },
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -45,9 +45,9 @@ function guestSnapshot(overrides = {}) {
             roundTitle: "Remote Contract",
             started: false,
             revealed: false,
-            players: []
+            players: [],
         },
-        ...overrides
+        ...overrides,
     };
 }
 
@@ -75,24 +75,38 @@ test("guest snapshot normalizes unsupported view to guest connect", async ({ pag
 
 test("invalid snapshot localId is cleared on boot", async ({ page }) => {
     await openHome(page);
-    await page.evaluate((snapshot) => {
-        window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
-    }, hostSnapshot({ localId: "x".repeat(100) }));
+    await page.evaluate(
+        (snapshot) => {
+            window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
+        },
+        hostSnapshot({ localId: "x".repeat(100) }),
+    );
 
     await page.reload();
     await expect(page.locator("#homeView.active")).toBeVisible();
 
-    const persisted = await page.evaluate(() => window.sessionStorage.getItem("planningPoker.session"));
+    const persisted = await page.evaluate(() =>
+        window.sessionStorage.getItem("planningPoker.session"),
+    );
     expect(persisted).toBeNull();
 });
 
 test("host snapshot restores approved guest IDs for rejoin auto-approval", async ({ page }) => {
     await openHome(page);
-    await page.evaluate((snapshot) => {
-        window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
-    }, hostSnapshot({
-        hostApprovedGuestIds: ["guest-known-1", "guest-known-2", "guest-known-1", "hostcontract01", ""]
-    }));
+    await page.evaluate(
+        (snapshot) => {
+            window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
+        },
+        hostSnapshot({
+            hostApprovedGuestIds: [
+                "guest-known-1",
+                "guest-known-2",
+                "guest-known-1",
+                "hostcontract01",
+                "",
+            ],
+        }),
+    );
 
     await page.reload();
     const approvedIds = await page.evaluate(async () => {
@@ -104,32 +118,35 @@ test("host snapshot restores approved guest IDs for rejoin auto-approval", async
 
 test("legacy host snapshot derives approved guests from players", async ({ page }) => {
     await openHome(page);
-    await page.evaluate((snapshot) => {
-        window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
-    }, hostSnapshot({
-        session: {
-            round: 1,
-            roundTitle: "",
-            started: true,
-            revealed: false,
-            players: {
-                hostcontract01: {
-                    id: "hostcontract01",
-                    name: "Host Contract",
-                    connected: true,
-                    vote: null,
-                    isHost: true
+    await page.evaluate(
+        (snapshot) => {
+            window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
+        },
+        hostSnapshot({
+            session: {
+                round: 1,
+                roundTitle: "",
+                started: true,
+                revealed: false,
+                players: {
+                    hostcontract01: {
+                        id: "hostcontract01",
+                        name: "Host Contract",
+                        connected: true,
+                        vote: null,
+                        isHost: true,
+                    },
+                    guestlegacy01: {
+                        id: "guestlegacy01",
+                        name: "Legacy Guest",
+                        connected: false,
+                        vote: null,
+                        isHost: false,
+                    },
                 },
-                guestlegacy01: {
-                    id: "guestlegacy01",
-                    name: "Legacy Guest",
-                    connected: false,
-                    vote: null,
-                    isHost: false
-                }
-            }
-        }
-    }));
+            },
+        }),
+    );
 
     await page.reload();
     const approvedIds = await page.evaluate(async () => {
@@ -141,14 +158,17 @@ test("legacy host snapshot derives approved guests from players", async ({ page 
 
 test("host snapshot preserves pending rejoin requests across reload", async ({ page }) => {
     await openHome(page);
-    await page.evaluate((snapshot) => {
-        window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
-    }, hostSnapshot({
-        hostPendingRejoinRequests: [
-            { id: "guest-pending-1", name: "Pending One", requestedAt: Date.now() - 1_000 },
-            { id: "guest-pending-2", name: "Pending Two", requestedAt: Date.now() }
-        ]
-    }));
+    await page.evaluate(
+        (snapshot) => {
+            window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
+        },
+        hostSnapshot({
+            hostPendingRejoinRequests: [
+                { id: "guest-pending-1", name: "Pending One", requestedAt: Date.now() - 1_000 },
+                { id: "guest-pending-2", name: "Pending Two", requestedAt: Date.now() },
+            ],
+        }),
+    );
 
     await page.reload();
     const pending = await page.evaluate(async () => {
@@ -159,17 +179,24 @@ test("host snapshot preserves pending rejoin requests across reload", async ({ p
     expect(pending.map((entry) => entry.id)).toEqual(["guest-pending-1", "guest-pending-2"]);
 });
 
-test("guest table snapshot without remote payload still restores table reconnect flow", async ({ page }) => {
+test("guest table snapshot without remote payload still restores table reconnect flow", async ({
+    page,
+}) => {
     await openHome(page);
-    await page.evaluate((snapshot) => {
-        window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
-    }, guestSnapshot({
-        currentView: "table",
-        roomId: "room-missing-remote",
-        guestRemoteState: null
-    }));
+    await page.evaluate(
+        (snapshot) => {
+            window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
+        },
+        guestSnapshot({
+            currentView: "table",
+            roomId: "room-missing-remote",
+            guestRemoteState: null,
+        }),
+    );
 
     await page.reload();
     await expect(page.locator("#tableView.active")).toBeVisible();
-    await expect(page.locator("#tableNotice")).toContainText(/Session restored|Trying to reconnect|Attempting to reconnect/);
+    await expect(page.locator("#tableNotice")).toContainText(
+        /Session restored|Trying to reconnect|Attempting to reconnect/,
+    );
 });

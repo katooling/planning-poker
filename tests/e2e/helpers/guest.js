@@ -16,7 +16,9 @@ export async function connectGuestToHost(hostPage, guestPage, guestName) {
     await guestPage.locator("#joinRoomBtn").click();
     await guestPage.locator("#guestRoomCodeInput").fill(roomCode);
     await guestPage.locator("#connectGuestRoomBtn").click();
-    const pendingRow = hostPage.locator("#hostPendingRejoinList .row-between", { hasText: guestName }).first();
+    const pendingRow = hostPage
+        .locator("#hostPendingRejoinList .row-between", { hasText: guestName })
+        .first();
     try {
         await expect(pendingRow).toBeVisible({ timeout: 3_000 });
         await pendingRow.getByRole("button", { name: "Approve" }).click();
@@ -29,7 +31,7 @@ export async function connectGuestToHost(hostPage, guestPage, guestName) {
         await expect(guestRow).toContainText("Online", { timeout: 8_000 });
     } else {
         await expect(guestPage.locator("#guestConnectNotice")).toContainText(
-            /approval|Could not connect to room|Disconnected/
+            /approval|Could not connect to room|Disconnected/,
         );
     }
 

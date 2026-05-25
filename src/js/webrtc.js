@@ -1,8 +1,12 @@
+// @ts-nocheck
+import { getIceServers } from "./ice-config.js";
+import { log } from "./log.js";
+import {
+    EMPTY_GUEST_JOIN_CODE_DISPLAY,
+    EMPTY_HOST_RESPONSE_CODE_DISPLAY,
+} from "./signal-display-presets.js";
 import { state } from "./state.js";
 import { els, setSignalCodeDisplay, showNotice, updateConnectionStatus } from "./ui.js";
-import { log } from "./log.js";
-import { getIceServers } from "./ice-config.js";
-import { EMPTY_GUEST_JOIN_CODE_DISPLAY, EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
 
 const ICE_GATHERING_TIMEOUT_MS = 10_000;
 const ICE_RESTART_MAX_ATTEMPTS = 2;
@@ -34,7 +38,7 @@ function describeCandidate(candidate) {
         type: candidate.candidateType || null,
         protocol: candidate.protocol || null,
         networkType: candidate.networkType || null,
-        relayProtocol: candidate.relayProtocol || null
+        relayProtocol: candidate.relayProtocol || null,
     };
 }
 
@@ -56,16 +60,19 @@ export async function logPeerConnectionDiagnostics(pc, role, extra = {}) {
             totalPairs += 1;
             if (report.state === "succeeded") succeededPairs += 1;
             if (report.state === "failed") failedPairs += 1;
-            if (report.state === "in-progress" || report.state === "inprogress") inProgressPairs += 1;
+            if (report.state === "in-progress" || report.state === "inprogress")
+                inProgressPairs += 1;
         }
 
         const selectedPair = getSelectedCandidatePair(stats);
-        const localCandidate = selectedPair && selectedPair.localCandidateId
-            ? stats.get(selectedPair.localCandidateId)
-            : null;
-        const remoteCandidate = selectedPair && selectedPair.remoteCandidateId
-            ? stats.get(selectedPair.remoteCandidateId)
-            : null;
+        const localCandidate =
+            selectedPair && selectedPair.localCandidateId
+                ? stats.get(selectedPair.localCandidateId)
+                : null;
+        const remoteCandidate =
+            selectedPair && selectedPair.remoteCandidateId
+                ? stats.get(selectedPair.remoteCandidateId)
+                : null;
 
         log.warn("webrtc", "Peer connectivity diagnostics", {
             role,
@@ -77,26 +84,26 @@ export async function logPeerConnectionDiagnostics(pc, role, extra = {}) {
                 total: totalPairs,
                 succeeded: succeededPairs,
                 failed: failedPairs,
-                inProgress: inProgressPairs
+                inProgress: inProgressPairs,
             },
             selectedPair: selectedPair
                 ? {
-                    state: selectedPair.state || null,
-                    nominated: !!selectedPair.nominated,
-                    currentRoundTripTime: numberOrNull(selectedPair.currentRoundTripTime),
-                    availableOutgoingBitrate: numberOrNull(selectedPair.availableOutgoingBitrate),
-                    bytesSent: numberOrNull(selectedPair.bytesSent),
-                    bytesReceived: numberOrNull(selectedPair.bytesReceived),
-                    local: describeCandidate(localCandidate),
-                    remote: describeCandidate(remoteCandidate)
-                }
-                : null
+                      state: selectedPair.state || null,
+                      nominated: !!selectedPair.nominated,
+                      currentRoundTripTime: numberOrNull(selectedPair.currentRoundTripTime),
+                      availableOutgoingBitrate: numberOrNull(selectedPair.availableOutgoingBitrate),
+                      bytesSent: numberOrNull(selectedPair.bytesSent),
+                      bytesReceived: numberOrNull(selectedPair.bytesReceived),
+                      local: describeCandidate(localCandidate),
+                      remote: describeCandidate(remoteCandidate),
+                  }
+                : null,
         });
     } catch (error) {
         log.warn("webrtc", "Failed to read peer diagnostics", {
             role,
             ...extra,
-            message: String(error.message || error)
+            message: String(error.message || error),
         });
     }
 }
@@ -104,7 +111,7 @@ export async function logPeerConnectionDiagnostics(pc, role, extra = {}) {
 export function createPeerConnection() {
     const pc = new RTCPeerConnection({
         iceServers: getIceServers(),
-        iceCandidatePoolSize: 0
+        iceCandidatePoolSize: 0,
     });
     log.info("webrtc", "PeerConnection created");
     return pc;
@@ -118,7 +125,7 @@ export function attemptIceRestart(pc, extra = {}) {
     if (attempts >= ICE_RESTART_MAX_ATTEMPTS) {
         log.warn("webrtc", "Skipping ICE restart; max attempts reached", {
             attempts,
-            ...extra
+            ...extra,
         });
         return false;
     }
@@ -130,14 +137,14 @@ export function attemptIceRestart(pc, extra = {}) {
             attempt: nextAttempt,
             maxAttempts: ICE_RESTART_MAX_ATTEMPTS,
             note: "best-effort only; manual signaling flow may still require relay fallback",
-            ...extra
+            ...extra,
         });
         return true;
     } catch (error) {
         log.warn("webrtc", "ICE restart failed to start", {
             attempt: nextAttempt,
             message: String(error.message || error),
-            ...extra
+            ...extra,
         });
         return false;
     }
@@ -147,9 +154,8 @@ export function waitForIceComplete(pc, timeoutMs = ICE_GATHERING_TIMEOUT_MS) {
     if (pc.iceGatheringState === "complete") {
         return Promise.resolve();
     }
-    const effectiveTimeoutMs = Number.isFinite(timeoutMs) && timeoutMs > 0
-        ? timeoutMs
-        : ICE_GATHERING_TIMEOUT_MS;
+    const effectiveTimeoutMs =
+        Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : ICE_GATHERING_TIMEOUT_MS;
 
     return new Promise((resolve) => {
         let done = false;
@@ -160,10 +166,14 @@ export function waitForIceComplete(pc, timeoutMs = ICE_GATHERING_TIMEOUT_MS) {
             clearTimeout(timer);
             pc.removeEventListener("icegatheringstatechange", onStateChange);
             if (timedOut) {
-                log.warn("webrtc", "ICE gathering timeout reached; continuing with partial candidates", {
-                    timeoutMs: effectiveTimeoutMs,
-                    state: pc.iceGatheringState
-                });
+                log.warn(
+                    "webrtc",
+                    "ICE gathering timeout reached; continuing with partial candidates",
+                    {
+                        timeoutMs: effectiveTimeoutMs,
+                        state: pc.iceGatheringState,
+                    },
+                );
             } else {
                 log.info("webrtc", "ICE gathering completed");
             }
@@ -249,7 +259,7 @@ export function shutdownHost(noticeMessage) {
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.rawCode,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyText,
         EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyMetaText,
-        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText
+        EMPTY_HOST_RESPONSE_CODE_DISPLAY.emptyQualityText,
     );
     els.copyHostResponseCodeBtn.disabled = true;
     els.copyHostResponseCodeFormattedBtn.disabled = true;
@@ -273,7 +283,7 @@ export function shutdownGuest(noticeMessage) {
         EMPTY_GUEST_JOIN_CODE_DISPLAY.rawCode,
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyText,
         EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyMetaText,
-        EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText
+        EMPTY_GUEST_JOIN_CODE_DISPLAY.emptyQualityText,
     );
     els.copyGuestJoinCodeBtn.disabled = true;
     els.copyGuestJoinCodeFormattedBtn.disabled = true;

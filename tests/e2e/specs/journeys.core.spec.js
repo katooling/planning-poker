@@ -1,9 +1,10 @@
-import { test, expect } from "@playwright/test";
-import {    connectGuestToHost,
+import { expect, test } from "@playwright/test";
+import {
+    connectGuestToHost,
     createHost,
     openHome,
     playerCard,
-    startGameFromLobbyStrict
+    startGameFromLobbyStrict,
 } from "../helpers/index.js";
 
 test("guest cannot operate host-only table controls", async ({ browser }) => {

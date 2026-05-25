@@ -1,15 +1,3 @@
-import { state } from "./state.js";
-import { decodeSignalCode } from "./signaling.js";
-import { saveSessionSnapshot } from "./persistence.js";
-import { createMqttRelayChannel } from "./mqtt-relay.js";
-import { broadcastMessageToGuests, broadcastState } from "./host-session.js";
-import {
-    handleHostInboundMessage,
-    onHostRecoveryRelayMessage,
-    startHostRecoveryRelayListener
-} from "./host-peers.js";
-import { els, showView } from "./ui.js";
-import { renderHostLobby, renderTable } from "./render.js";
 import {
     ageGuestMqttInboundForTest,
     connectGuestByRoomCode,
@@ -18,8 +6,20 @@ import {
     onHostChannelClose,
     onHostChannelOpen,
     runGuestMqttHealthCheckForTest,
-    setupGuestPeerHandlers
+    setupGuestPeerHandlers,
 } from "./guest.js";
+import {
+    handleHostInboundMessage,
+    onHostRecoveryRelayMessage,
+    startHostRecoveryRelayListener,
+} from "./host-peers.js";
+import { broadcastMessageToGuests, broadcastState } from "./host-session.js";
+import { createMqttRelayChannel } from "./mqtt-relay.js";
+import { saveSessionSnapshot } from "./persistence.js";
+import { renderHostLobby, renderTable } from "./render.js";
+import { decodeSignalCode } from "./signaling.js";
+import { state } from "./state.js";
+import { els, showView } from "./ui.js";
 
 /** @type {Record<string, unknown>} */
 const e2eApi = {
@@ -43,7 +43,7 @@ const e2eApi = {
     onHostChannelClose,
     onHostChannelOpen,
     runGuestMqttHealthCheckForTest,
-    setupGuestPeerHandlers
+    setupGuestPeerHandlers,
 };
 
 export function installE2EBridge() {
