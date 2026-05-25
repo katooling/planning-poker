@@ -1,12 +1,12 @@
-const { expect } = require("@playwright/test");
+import { expect } from "@playwright/test";
 
-async function createHost(page, name) {
+export async function createHost(page, name) {
     await page.locator("#displayNameInput").fill(name);
     await page.locator("#createRoomBtn").click();
     await expect(page.locator("#hostLobbyView.active")).toBeVisible();
 }
 
-async function startGameFromLobby(hostPage) {
+export async function startGameFromLobby(hostPage) {
     const startBtn = hostPage.locator("#hostStartGameBtn");
     const canStartNormally = await startBtn.isEnabled();
     if (!canStartNormally) {
@@ -20,15 +20,9 @@ async function startGameFromLobby(hostPage) {
     await expect(hostPage.locator("#tableView.active")).toBeVisible();
 }
 
-async function startGameFromLobbyStrict(hostPage) {
+export async function startGameFromLobbyStrict(hostPage) {
     const startBtn = hostPage.locator("#hostStartGameBtn");
     await expect(startBtn).toBeEnabled();
     await startBtn.click();
     await expect(hostPage.locator("#tableView.active")).toBeVisible();
 }
-
-module.exports = {
-    createHost,
-    startGameFromLobby,
-    startGameFromLobbyStrict
-};

@@ -1,0 +1,73 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.4.15/schema.json",
+    "vcs": {
+        "enabled": true,
+        "clientKind": "git",
+        "useIgnoreFile": true
+    },
+    "files": {
+        "includes": [
+            "**",
+            "!dist",
+            "!node_modules",
+            "!playwright-report",
+            "!test-results",
+            "!package-lock.json"
+        ]
+    },
+    "formatter": {
+        "enabled": true,
+        "indentStyle": "space",
+        "indentWidth": 4,
+        "lineWidth": 100
+    },
+    "linter": {
+        "enabled": true,
+        "rules": {
+            "recommended": true,
+            "a11y": {
+                "recommended": false
+            },
+            "complexity": {
+                "noArguments": "off",
+                "useOptionalChain": "warn"
+            },
+            "style": {
+                "noParameterAssign": "off"
+            }
+        }
+    },
+    "javascript": {
+        "formatter": {
+            "quoteStyle": "double",
+            "semicolons": "always"
+        }
+    },
+    "css": {
+        "parser": {
+            "tailwindDirectives": true
+        }
+    },
+    "overrides": [
+        {
+            "includes": ["src/**", "tests/**"],
+            "linter": {
+                "rules": {
+                    "style": {
+                        "useTemplate": "off"
+                    }
+                }
+            }
+        },
+        {
+            "includes": ["tests/e2e/**"],
+            "linter": {
+                "rules": {
+                    "security": {
+                        "noGlobalEval": "off"
+                    }
+                }
+            }
+        }
+    ]
+}

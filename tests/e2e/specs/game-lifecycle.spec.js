@@ -1,13 +1,13 @@
-const { test, expect } = require("@playwright/test");
-const {
+import { expect, test } from "@playwright/test";
+import {
     connectGuestToHost,
     createHost,
     openHome,
     playerCard,
     startGameFromLobby,
     startGameFromLobbyStrict,
-    waitForGuestConnection
-} = require("../helpers");
+    waitForGuestConnection,
+} from "../helpers/index.js";
 
 test("host and guest can play a full round lifecycle", async ({ browser }) => {
     test.setTimeout(90_000);
@@ -56,12 +56,18 @@ test("host and guest can play a full round lifecycle", async ({ browser }) => {
     await expect(host.locator("#statMedian")).toHaveText(guestConnection.connected ? "6.50" : "5");
     await expect(host.locator("#statMin")).toHaveText("5");
     await expect(host.locator("#statMax")).toHaveText(guestConnection.connected ? "8" : "5");
-    await expect(host.locator("#statConsensus")).toHaveText(guestConnection.connected ? "No" : "Yes");
+    await expect(host.locator("#statConsensus")).toHaveText(
+        guestConnection.connected ? "No" : "Yes",
+    );
 
     await host.locator('#votePalette .vote-card[data-vote="13"]').click();
     await expect(hostCard).toContainText("13");
-    await expect(host.locator("#statAverage")).toHaveText(guestConnection.connected ? "10.50" : "13");
-    await expect(host.locator("#statMedian")).toHaveText(guestConnection.connected ? "10.50" : "13");
+    await expect(host.locator("#statAverage")).toHaveText(
+        guestConnection.connected ? "10.50" : "13",
+    );
+    await expect(host.locator("#statMedian")).toHaveText(
+        guestConnection.connected ? "10.50" : "13",
+    );
     await expect(host.locator("#statMin")).toHaveText(guestConnection.connected ? "8" : "13");
     await expect(host.locator("#statMax")).toHaveText("13");
     if (guestConnection.connected) {
@@ -96,9 +102,10 @@ test("host and guest can play a full round lifecycle", async ({ browser }) => {
     if (guestConnection.connected) {
         await guest.locator("#leaveSessionBtn").click();
         await expect(guest.locator("#homeView.active")).toBeVisible();
-        await expect(host.locator("#tablePlayersGrid .player-card", { hasText: "GuestA" })).toHaveCount(0, { timeout: 15_000 });
+        await expect(
+            host.locator("#tablePlayersGrid .player-card", { hasText: "GuestA" }),
+        ).toHaveCount(0, { timeout: 15_000 });
     }
-
 });
 
 test("remaining guests receive disconnect updates", async ({ browser }) => {
@@ -117,7 +124,7 @@ test("remaining guests receive disconnect updates", async ({ browser }) => {
 
     test.skip(
         !guestAConnection.connected || !guestBConnection.connected,
-        "WebRTC data channels did not open in this environment."
+        "WebRTC data channels did not open in this environment.",
     );
 
     await startGameFromLobby(host);
@@ -127,9 +134,13 @@ test("remaining guests receive disconnect updates", async ({ browser }) => {
 
     await guestA.locator("#leaveSessionBtn").click();
     await expect(guestA.locator("#homeView.active")).toBeVisible();
-    await expect(host.locator("#tablePlayersGrid .player-card", { hasText: "GuestA" })).toHaveCount(0, { timeout: 15_000 });
-    await expect(guestB.locator("#tablePlayersGrid .player-card", { hasText: "GuestA" })).toHaveCount(0, { timeout: 15_000 });
-
+    await expect(host.locator("#tablePlayersGrid .player-card", { hasText: "GuestA" })).toHaveCount(
+        0,
+        { timeout: 15_000 },
+    );
+    await expect(
+        guestB.locator("#tablePlayersGrid .player-card", { hasText: "GuestA" }),
+    ).toHaveCount(0, { timeout: 15_000 });
 });
 
 test("host can kick a guest from lobby", async ({ browser }) => {
@@ -149,10 +160,15 @@ test("host can kick a guest from lobby", async ({ browser }) => {
     await expect(kickButton).toBeVisible();
     await kickButton.click();
 
-    await expect(host.locator("#hostPlayerList .player-row", { hasText: "GuestKick" })).toHaveCount(0, { timeout: 12_000 });
+    await expect(host.locator("#hostPlayerList .player-row", { hasText: "GuestKick" })).toHaveCount(
+        0,
+        { timeout: 12_000 },
+    );
     await expect(host.locator("#hostStartGameBtn")).toBeDisabled();
     await expect(guest.locator("#homeView.active")).toBeVisible({ timeout: 12_000 });
-    await expect(guest.locator("#homeNotice")).toContainText("Removed by host", { timeout: 12_000 });
+    await expect(guest.locator("#homeNotice")).toContainText("Removed by host", {
+        timeout: 12_000,
+    });
 });
 
 test("strict host and guest happy path requires live guest connection", async ({ browser }) => {
@@ -169,7 +185,9 @@ test("strict host and guest happy path requires live guest connection", async ({
     const connected = guestConnection.connected || (await waitForGuestConnection(guest, 20_000));
     test.skip(!connected, "Live data channel did not open in this environment.");
 
-    await expect(host.locator("#hostPlayerList .player-row", { hasText: "GuestStrict" })).toContainText("Online", { timeout: 20_000 });
+    await expect(
+        host.locator("#hostPlayerList .player-row", { hasText: "GuestStrict" }),
+    ).toContainText("Online", { timeout: 20_000 });
     await startGameFromLobbyStrict(host);
     await expect(guest.locator("#tableView.active")).toBeVisible();
 
@@ -177,7 +195,6 @@ test("strict host and guest happy path requires live guest connection", async ({
     await guest.locator('#votePalette .vote-card[data-vote="8"]').click();
     await host.locator("#hostRevealBtn").click();
     await expect(playerCard(guest, "HostStrict")).toHaveClass(/revealed/);
-
 });
 
 test("host start game button stays disabled until a guest is connected", async ({ page }) => {

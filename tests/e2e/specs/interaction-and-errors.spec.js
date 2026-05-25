@@ -1,5 +1,11 @@
-const { test, expect } = require("@playwright/test");
-const { createHost, openHome, readCode, setConnectionMode, setConnectionModeForPages } = require("../helpers");
+import { expect, test } from "@playwright/test";
+import {
+    createHost,
+    openHome,
+    readCode,
+    setConnectionMode,
+    setConnectionModeForPages,
+} from "../helpers/index.js";
 
 test("escape exits guest connect view back to home", async ({ page }) => {
     await openHome(page);
@@ -40,7 +46,9 @@ test("enter submits guest response code input", async ({ page }) => {
 
     await page.locator("#guestResponseCodeInput").fill("invalid-code");
     await page.locator("#guestResponseCodeInput").press("Enter");
-    await expect(page.locator("#guestConnectNotice")).toContainText("Could not apply response code");
+    await expect(page.locator("#guestConnectNotice")).toContainText(
+        "Could not apply response code",
+    );
 });
 
 test("host rejects malformed guest join code", async ({ page }) => {
@@ -62,7 +70,9 @@ test("guest rejects malformed host response code", async ({ page }) => {
 
     await page.locator("#guestResponseCodeInput").fill("still-not-a-valid-response");
     await page.locator("#connectGuestBtn").click();
-    await expect(page.locator("#guestConnectNotice")).toContainText("Could not apply response code");
+    await expect(page.locator("#guestConnectNotice")).toContainText(
+        "Could not apply response code",
+    );
 });
 
 test("guest rejects response code intended for a different guest", async ({ browser }) => {

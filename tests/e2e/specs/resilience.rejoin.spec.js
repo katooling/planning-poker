@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { openHome } = require("../helpers");
+import { expect, test } from "@playwright/test";
+import { openHome } from "../helpers/index.js";
 
 test("guest webrtc disconnected state triggers channel recovery", async ({ page }) => {
     await openHome(page);
@@ -40,7 +40,9 @@ test("guest webrtc disconnected state triggers channel recovery", async ({ page 
                 if (packetType === 8 && typeof this.onmessage === "function") {
                     const packetIdMsb = bytes[2] || 0x00;
                     const packetIdLsb = bytes[3] || 0x01;
-                    this.onmessage({ data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer });
+                    this.onmessage({
+                        data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer,
+                    });
                     setTimeout(() => this.close(), 4);
                 }
             }
@@ -53,10 +55,10 @@ test("guest webrtc disconnected state triggers channel recovery", async ({ page 
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { setupGuestPeerHandlers, onHostChannelOpen } = await import("/js/guest.js");
-            const { els } = await import("/js/ui.js");
-            const { showView } = await import("/js/ui.js");
+            const { state } = window.__planningPokerE2E;
+            const { setupGuestPeerHandlers, onHostChannelOpen } = window.__planningPokerE2E;
+            const { els } = window.__planningPokerE2E;
+            const { showView } = window.__planningPokerE2E;
 
             let channelClosed = false;
             const fakeDc = {
@@ -64,19 +66,25 @@ test("guest webrtc disconnected state triggers channel recovery", async ({ page 
                 close() {
                     channelClosed = true;
                 },
-                send() {}
+                send() {},
             };
             const fakePc = {
                 connectionState: "connected",
                 iceConnectionState: "connected",
-                restartIce() {}
+                restartIce() {},
             };
 
             state.role = "guest";
             state.currentView = "table";
             state.roomId = "room-unstable";
             state.guestAutoRejoinEnabled = true;
-            state.guestRemoteState = { round: 1, roundTitle: "", started: true, revealed: false, players: [] };
+            state.guestRemoteState = {
+                round: 1,
+                roundTitle: "",
+                started: true,
+                revealed: false,
+                players: [],
+            };
             state.guestPeer = fakePc;
             state.guestChannel = fakeDc;
             showView("table");
@@ -93,7 +101,9 @@ test("guest webrtc disconnected state triggers channel recovery", async ({ page 
                 status: String(els.connectionStatusText.textContent || ""),
                 phase: state.guestConnectionPhase,
                 channelClosed,
-                rejoining: String(els.connectionStatusText.textContent || "").includes("Reconnecting")
+                rejoining: String(els.connectionStatusText.textContent || "").includes(
+                    "Reconnecting",
+                ),
             };
         } finally {
             delete window.__PP_TEST_GUEST_DISCONNECTED_RECOVERY_MS;
@@ -112,10 +122,10 @@ test("guest rejoinAck updates room and restores connected status", async ({ page
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { handleGuestInboundMessage } = await import("/js/guest.js");
-        const { showView } = await import("/js/ui.js");
-        const { renderTable } = await import("/js/render.js");
+        const { state } = window.__planningPokerE2E;
+        const { handleGuestInboundMessage } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.displayName = "GuestAck";
@@ -127,7 +137,7 @@ test("guest rejoinAck updates room and restores connected status", async ({ page
             roundTitle: "",
             started: true,
             revealed: false,
-            players: []
+            players: [],
         };
         showView("table");
         renderTable();
@@ -135,13 +145,16 @@ test("guest rejoinAck updates room and restores connected status", async ({ page
         const fakeChannel = {
             readyState: "open",
             close() {},
-            send() {}
+            send() {},
         };
         state.guestChannel = fakeChannel;
 
-        handleGuestInboundMessage(JSON.stringify({ t: "rejoinAck", to: state.localId, room: "new-room-id" }), fakeChannel);
+        handleGuestInboundMessage(
+            JSON.stringify({ t: "rejoinAck", to: state.localId, room: "new-room-id" }),
+            fakeChannel,
+        );
         return {
-            roomId: state.roomId
+            roomId: state.roomId,
         };
     });
 
@@ -154,10 +167,10 @@ test("guest rejoinReject shows pending approval state", async ({ page }) => {
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { handleGuestInboundMessage } = await import("/js/guest.js");
-        const { showView } = await import("/js/ui.js");
-        const { renderTable } = await import("/js/render.js");
+        const { state } = window.__planningPokerE2E;
+        const { handleGuestInboundMessage } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
 
         let closed = false;
         state.role = "guest";
@@ -170,7 +183,7 @@ test("guest rejoinReject shows pending approval state", async ({ page }) => {
             roundTitle: "",
             started: true,
             revealed: false,
-            players: []
+            players: [],
         };
         showView("table");
         renderTable();
@@ -180,27 +193,32 @@ test("guest rejoinReject shows pending approval state", async ({ page }) => {
             close() {
                 closed = true;
             },
-            send() {}
+            send() {},
         };
         state.guestChannel = fakeChannel;
 
-        handleGuestInboundMessage(JSON.stringify({ t: "rejoinReject", to: state.localId }), fakeChannel);
+        handleGuestInboundMessage(
+            JSON.stringify({ t: "rejoinReject", to: state.localId }),
+            fakeChannel,
+        );
         return {
-            closed
+            closed,
         };
     });
 
     expect(result.closed).toBe(true);
     await expect(page.locator("#connectionStatusText")).toContainText("Reconnect pending approval");
-    await expect(page.locator("#tableNotice")).toContainText(/Host approval required|Retrying shortly/);
+    await expect(page.locator("#tableNotice")).toContainText(
+        /Host approval required|Retrying shortly/,
+    );
 });
 
 test("host auto-approves known guest rejoin without queueing pending request", async ({ page }) => {
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { onHostRecoveryRelayMessage } = await import("/js/host-peers.js");
+        const { state } = window.__planningPokerE2E;
+        const { onHostRecoveryRelayMessage } = window.__planningPokerE2E;
 
         const roomId = "room-known-rejoin";
         const hostId = "host-known-rejoin";
@@ -225,9 +243,9 @@ test("host auto-approves known guest rejoin without queueing pending request", a
                     name: "Host Known",
                     connected: true,
                     vote: null,
-                    isHost: true
-                }
-            }
+                    isHost: true,
+                },
+            },
         };
 
         const relayChannel = {
@@ -236,23 +254,25 @@ test("host auto-approves known guest rejoin without queueing pending request", a
             send(data) {
                 sentMessages.push(JSON.parse(String(data)));
             },
-            close() {}
+            close() {},
         };
 
         onHostRecoveryRelayMessage(
             JSON.stringify({ t: "rejoin", id: guestId, n: "Known Guest", pin: "" }),
             guestId,
-            relayChannel
+            relayChannel,
         );
 
-        const rejoinAck = sentMessages.find((message) => message.t === "rejoinAck" && message.to === guestId) || null;
+        const rejoinAck =
+            sentMessages.find((message) => message.t === "rejoinAck" && message.to === guestId) ||
+            null;
         const pendingIds = (state.hostPendingRejoinRequests || []).map((entry) => entry.id);
         const peer = state.hostPeers.get(guestId);
         return {
             ackType: rejoinAck ? rejoinAck.t : null,
             ackRoom: rejoinAck ? rejoinAck.room : null,
             pendingIds,
-            peerConnected: !!(peer && peer.connected)
+            peerConnected: !!(peer && peer.connected),
         };
     });
 
@@ -298,7 +318,9 @@ test("host recovery relay listener reconnects after relay close", async ({ page 
                 if (packetType === 8 && typeof this.onmessage === "function") {
                     const packetIdMsb = bytes[2] || 0x00;
                     const packetIdLsb = bytes[3] || 0x01;
-                    this.onmessage({ data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer });
+                    this.onmessage({
+                        data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer,
+                    });
                     if (!forcedCloseDone) {
                         forcedCloseDone = true;
                         setTimeout(() => this.close(), 20);
@@ -314,8 +336,8 @@ test("host recovery relay listener reconnects after relay close", async ({ page 
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { startHostRecoveryRelayListener } = await import("/js/host-peers.js");
+            const { state } = window.__planningPokerE2E;
+            const { startHostRecoveryRelayListener } = window.__planningPokerE2E;
 
             state.role = "host";
             state.localId = "host-reconnect-listener";
@@ -331,9 +353,9 @@ test("host recovery relay listener reconnects after relay close", async ({ page 
                         name: "Host",
                         connected: true,
                         vote: null,
-                        isHost: true
-                    }
-                }
+                        isHost: true,
+                    },
+                },
             };
             state.hostRecoveryRelay = null;
             startHostRecoveryRelayListener();
@@ -353,7 +375,9 @@ test("host recovery relay listener reconnects after relay close", async ({ page 
     expect(result.websocketCreates).toBeGreaterThan(1);
 });
 
-test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", async ({ page }) => {
+test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", async ({
+    page,
+}) => {
     await openHome(page);
 
     const result = await page.evaluate(async () => {
@@ -391,7 +415,9 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
                 if (packetType === 8 && typeof this.onmessage === "function") {
                     const packetIdMsb = bytes[2] || 0x00;
                     const packetIdLsb = bytes[3] || 0x01;
-                    this.onmessage({ data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer });
+                    this.onmessage({
+                        data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer,
+                    });
                     setTimeout(() => this.close(), 3);
                 }
             }
@@ -404,16 +430,22 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { onHostChannelClose } = await import("/js/guest.js");
-            const { showView, els } = await import("/js/ui.js");
-            const { renderTable } = await import("/js/render.js");
+            const { state } = window.__planningPokerE2E;
+            const { onHostChannelClose } = window.__planningPokerE2E;
+            const { showView, els } = window.__planningPokerE2E;
+            const { renderTable } = window.__planningPokerE2E;
 
             state.role = "guest";
             state.currentView = "table";
             state.roomId = "room-exhaust";
             state.guestAutoRejoinEnabled = true;
-            state.guestRemoteState = { round: 1, roundTitle: "", started: true, revealed: false, players: [] };
+            state.guestRemoteState = {
+                round: 1,
+                roundTitle: "",
+                started: true,
+                revealed: false,
+                players: [],
+            };
             showView("table");
             renderTable();
 
@@ -430,7 +462,7 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
             await new Promise((resolve) => setTimeout(resolve, 250));
             return {
                 notice: String(els.tableNotice.textContent || ""),
-                status: String(els.connectionStatusText.textContent || "")
+                status: String(els.connectionStatusText.textContent || ""),
             };
         } finally {
             delete window.__PP_TEST_REJOIN_MAX_RETRIES;
@@ -443,7 +475,9 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
     expect(result.status).not.toContain("Reconnecting to host...");
 });
 
-test("guest quick-join close while awaiting approval shows actionable retry state", async ({ page }) => {
+test("guest quick-join close while awaiting approval shows actionable retry state", async ({
+    page,
+}) => {
     await openHome(page);
 
     const result = await page.evaluate(async () => {
@@ -481,7 +515,9 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
                 if (packetType === 8 && typeof this.onmessage === "function") {
                     const packetIdMsb = bytes[2] || 0x00;
                     const packetIdLsb = bytes[3] || 0x01;
-                    this.onmessage({ data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer });
+                    this.onmessage({
+                        data: new Uint8Array([0x90, 0x03, packetIdMsb, packetIdLsb, 0x00]).buffer,
+                    });
                     setTimeout(() => this.close(), 4);
                     return;
                 }
@@ -495,9 +531,9 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { connectGuestByRoomCode } = await import("/js/guest.js");
-            const { showView, els } = await import("/js/ui.js");
+            const { state } = window.__planningPokerE2E;
+            const { connectGuestByRoomCode } = window.__planningPokerE2E;
+            const { showView, els } = window.__planningPokerE2E;
 
             state.displayName = "GuestQuickClose";
             state.role = "guest";
@@ -507,7 +543,7 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
 
             return {
                 notice: String(els.guestConnectNotice.textContent || ""),
-                status: String(els.connectionStatusText.textContent || "")
+                status: String(els.connectionStatusText.textContent || ""),
             };
         } finally {
             delete window.__PP_TEST_QUICK_JOIN_RETRY_MAX;

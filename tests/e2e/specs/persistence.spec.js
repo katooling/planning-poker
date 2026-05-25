@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const { createHost, openHome, startGameFromLobby } = require("../helpers");
+import { expect, test } from "@playwright/test";
+import { createHost, openHome, startGameFromLobby } from "../helpers/index.js";
 
 test("host session snapshot restores table context after refresh", async ({ page }) => {
     await openHome(page);
@@ -24,10 +24,10 @@ test("host session snapshot restores table context after refresh", async ({ page
 test("guest restored table shows reconnect journey after refresh", async ({ page }) => {
     await openHome(page);
     await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { showView } = await import("/js/ui.js");
-        const { renderTable } = await import("/js/render.js");
-        const { saveSessionSnapshot } = await import("/js/persistence.js");
+        const { state } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
+        const { saveSessionSnapshot } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.localId = "guestrestore01";
@@ -41,9 +41,23 @@ test("guest restored table shows reconnect journey after refresh", async ({ page
             started: true,
             revealed: false,
             players: [
-                { id: "host-restore", name: "HostRestore", connected: false, isHost: true, voted: true, vote: null },
-                { id: "guestrestore01", name: "GuestRestore", connected: false, isHost: false, voted: true, vote: null }
-            ]
+                {
+                    id: "host-restore",
+                    name: "HostRestore",
+                    connected: false,
+                    isHost: true,
+                    voted: true,
+                    vote: null,
+                },
+                {
+                    id: "guestrestore01",
+                    name: "GuestRestore",
+                    connected: false,
+                    isHost: false,
+                    voted: true,
+                    vote: null,
+                },
+            ],
         };
         showView("table");
         renderTable();
@@ -54,8 +68,12 @@ test("guest restored table shows reconnect journey after refresh", async ({ page
 
     await expect(page.locator("#tableView.active")).toBeVisible();
     await expect(page.locator("#tableSubtitle")).toContainText("Round 3 - Checkout Flow");
-    await expect(page.locator("#tableNotice")).toContainText(/Session restored|Trying to reconnect/);
-    await expect(page.locator("#connectionStatusText")).toContainText(/Reconnecting|Disconnected|Reconnect pending approval/);
+    await expect(page.locator("#tableNotice")).toContainText(
+        /Session restored|Trying to reconnect/,
+    );
+    await expect(page.locator("#connectionStatusText")).toContainText(
+        /Reconnecting|Disconnected|Reconnect pending approval/,
+    );
 });
 
 test("explicit leave clears session snapshot", async ({ page }) => {
@@ -75,7 +93,7 @@ test("stale session snapshot is ignored on startup", async ({ page }) => {
     await page.evaluate(() => {
         const staleSnapshot = {
             v: 1,
-            savedAt: Date.now() - (13 * 60 * 60 * 1000),
+            savedAt: Date.now() - 13 * 60 * 60 * 1000,
             role: "host",
             localId: "hoststale123",
             displayName: "Stale Host",
@@ -93,10 +111,10 @@ test("stale session snapshot is ignored on startup", async ({ page }) => {
                         name: "Stale Host",
                         connected: true,
                         vote: "8",
-                        isHost: true
-                    }
-                }
-            }
+                        isHost: true,
+                    },
+                },
+            },
         };
         window.sessionStorage.setItem("planningPoker.session", JSON.stringify(staleSnapshot));
     });
@@ -115,7 +133,9 @@ test("corrupt session snapshot is cleared and app boots safely", async ({ page }
     await page.reload();
     await expect(page.locator("#homeView.active")).toBeVisible();
 
-    const persisted = await page.evaluate(() => window.sessionStorage.getItem("planningPoker.session"));
+    const persisted = await page.evaluate(() =>
+        window.sessionStorage.getItem("planningPoker.session"),
+    );
     expect(persisted).toBeNull();
 });
 
@@ -124,9 +144,9 @@ test("host can approve and reject unknown guest rejoin requests", async ({ page 
     await createHost(page, "HostApprove");
 
     await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { renderHostLobby } = await import("/js/render.js");
-        const { showView } = await import("/js/ui.js");
+        const { state } = window.__planningPokerE2E;
+        const { renderHostLobby } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
 
         const sent = [];
         state.hostRecoveryRelay = {
@@ -134,11 +154,11 @@ test("host can approve and reject unknown guest rejoin requests", async ({ page 
             send(data) {
                 sent.push(JSON.parse(String(data)));
             },
-            close() {}
+            close() {},
         };
         state.hostPendingRejoinRequests = [
             { id: "guest-unknown-1", name: "Unknown One", requestedAt: Date.now() },
-            { id: "guest-unknown-2", name: "Unknown Two", requestedAt: Date.now() }
+            { id: "guest-unknown-2", name: "Unknown Two", requestedAt: Date.now() },
         ];
         window.__rejoinSent = sent;
         showView("hostLobby");
@@ -156,8 +176,12 @@ test("host can approve and reject unknown guest rejoin requests", async ({ page 
     await expect(page.locator("#hostPendingRejoinList")).not.toContainText("Unknown Two");
 
     const sentMessages = await page.evaluate(() => window.__rejoinSent || []);
-    expect(sentMessages.some((msg) => msg.t === "rejoinAck" && msg.to === "guest-unknown-1")).toBe(true);
-    expect(sentMessages.some((msg) => msg.t === "rejoinReject" && msg.to === "guest-unknown-2")).toBe(true);
+    expect(sentMessages.some((msg) => msg.t === "rejoinAck" && msg.to === "guest-unknown-1")).toBe(
+        true,
+    );
+    expect(
+        sentMessages.some((msg) => msg.t === "rejoinReject" && msg.to === "guest-unknown-2"),
+    ).toBe(true);
 });
 
 test("guest table disconnect starts auto-rejoin loop", async ({ page }) => {
@@ -193,10 +217,10 @@ test("guest table disconnect starts auto-rejoin loop", async ({ page }) => {
 
         window.WebSocket = FakeWebSocket;
         try {
-            const { state } = await import("/js/state.js");
-            const { onHostChannelClose } = await import("/js/guest.js");
-            const { els, showView } = await import("/js/ui.js");
-            const { renderTable } = await import("/js/render.js");
+            const { state } = window.__planningPokerE2E;
+            const { onHostChannelClose } = window.__planningPokerE2E;
+            const { els, showView } = window.__planningPokerE2E;
+            const { renderTable } = window.__planningPokerE2E;
 
             state.role = "guest";
             state.displayName = "GuestAuto";
@@ -207,14 +231,14 @@ test("guest table disconnect starts auto-rejoin loop", async ({ page }) => {
                 roundTitle: "Auto Rejoin",
                 started: true,
                 revealed: false,
-                players: []
+                players: [],
             };
             showView("table");
             renderTable();
 
             const fakeChannel = {
                 readyState: "open",
-                close() {}
+                close() {},
             };
             state.guestChannel = fakeChannel;
             onHostChannelClose(fakeChannel);
@@ -236,7 +260,7 @@ test("guest table disconnect starts auto-rejoin loop", async ({ page }) => {
             return {
                 websocketCreates,
                 notice: String(els.tableNotice.textContent || ""),
-                status: String(els.connectionStatusText.textContent || "")
+                status: String(els.connectionStatusText.textContent || ""),
             };
         } finally {
             window.WebSocket = originalWebSocket;

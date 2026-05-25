@@ -1,5 +1,11 @@
-const { test, expect } = require("@playwright/test");
-const { createHost, openHome, readCode, setConnectionMode, setConnectionModeForPages } = require("../helpers");
+import { expect, test } from "@playwright/test";
+import {
+    createHost,
+    openHome,
+    readCode,
+    setConnectionMode,
+    setConnectionModeForPages,
+} from "../helpers/index.js";
 
 function normalizeWhitespace(value) {
     return String(value || "").replace(/\s+/g, "");
@@ -42,8 +48,8 @@ test("guest copy plain and formatted buttons copy expected values", async ({ bro
             value: {
                 writeText: async (text) => {
                     window.__copiedTexts.push(String(text));
-                }
-            }
+                },
+            },
         });
     });
     const page = await context.newPage();
@@ -61,7 +67,7 @@ test("guest copy plain and formatted buttons copy expected values", async ({ bro
     expect(copied.length).toBeGreaterThanOrEqual(2);
 
     const rawCode = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
+        const { state } = window.__planningPokerE2E;
         return state.guestJoinCodeRaw;
     });
     expect(copied[0]).toBe(rawCode);
@@ -77,8 +83,8 @@ test("host copy plain and formatted response buttons copy expected values", asyn
             value: {
                 writeText: async (text) => {
                     window.__copiedTexts.push(String(text));
-                }
-            }
+                },
+            },
         });
     });
     const host = await context.newPage();
@@ -103,7 +109,7 @@ test("host copy plain and formatted response buttons copy expected values", asyn
     expect(copied.length).toBeGreaterThanOrEqual(2);
 
     const rawCode = await host.evaluate(async () => {
-        const { state } = await import("/js/state.js");
+        const { state } = window.__planningPokerE2E;
         return state.hostResponseCodeRaw;
     });
     expect(copied[0]).toBe(rawCode);

@@ -1,5 +1,5 @@
-const { test, expect } = require("@playwright/test");
-const {
+import { expect, test } from "@playwright/test";
+import {
     connectGuestToHost,
     createHost,
     openHome,
@@ -8,8 +8,8 @@ const {
     setConnectionModeForPages,
     setConnectionPreferences,
     startGameFromLobby,
-    waitForGuestConnection
-} = require("../helpers");
+    waitForGuestConnection,
+} from "../helpers/index.js";
 
 test("guest presence heartbeat sends immediate and periodic beats", async ({ page }) => {
     await openHome(page);
@@ -17,8 +17,8 @@ test("guest presence heartbeat sends immediate and periodic beats", async ({ pag
     const result = await page.evaluate(async () => {
         window.__PP_TEST_PRESENCE_PING_INTERVAL_MS = 60;
         const sent = [];
-        const { state } = await import("/js/state.js");
-        const { onHostChannelOpen } = await import("/js/guest.js");
+        const { state } = window.__planningPokerE2E;
+        const { onHostChannelOpen } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.displayName = "GuestBeat";
@@ -29,7 +29,7 @@ test("guest presence heartbeat sends immediate and periodic beats", async ({ pag
             roundTitle: "",
             started: true,
             revealed: false,
-            players: []
+            players: [],
         };
 
         const channel = {
@@ -40,7 +40,7 @@ test("guest presence heartbeat sends immediate and periodic beats", async ({ pag
             send(data) {
                 sent.push(JSON.parse(String(data)));
             },
-            close() {}
+            close() {},
         };
 
         state.guestChannel = channel;
@@ -50,7 +50,7 @@ test("guest presence heartbeat sends immediate and periodic beats", async ({ pag
         const presence = sent.filter((message) => message.t === "presence");
         return {
             presence,
-            phases: presence.map((message) => message.reason)
+            phases: presence.map((message) => message.reason),
         };
     });
 
@@ -63,9 +63,9 @@ test("host presence heartbeat triggers state broadcast every cycle", async ({ pa
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { handleHostInboundMessage } = await import("/js/host-peers.js");
-        const { broadcastState } = await import("/js/host-session.js");
+        const { state } = window.__planningPokerE2E;
+        const { handleHostInboundMessage } = window.__planningPokerE2E;
+        const { broadcastState } = window.__planningPokerE2E;
 
         const guestId = "guest-presence-sync";
         const hostId = "host-presence-sync";
@@ -75,7 +75,7 @@ test("host presence heartbeat triggers state broadcast every cycle", async ({ pa
             transportType: "mqtt-relay",
             send(data) {
                 outbound.push(JSON.parse(String(data)));
-            }
+            },
         };
 
         state.role = "host";
@@ -92,37 +92,41 @@ test("host presence heartbeat triggers state broadcast every cycle", async ({ pa
                     name: "Host",
                     connected: true,
                     vote: "8",
-                    isHost: true
+                    isHost: true,
                 },
                 [guestId]: {
                     id: guestId,
                     name: "Guest",
                     connected: true,
                     vote: "5",
-                    isHost: false
-                }
-            }
+                    isHost: false,
+                },
+            },
         };
         state.hostPeers.set(guestId, {
             id: guestId,
             name: "Guest",
             pc: null,
             dc: relay,
-            connected: true
+            connected: true,
         });
 
         outbound.length = 0;
         handleHostInboundMessage(
             guestId,
-            JSON.stringify({ t: "presence", n: "Guest", reason: "beat" })
+            JSON.stringify({ t: "presence", n: "Guest", reason: "beat" }),
         );
-        const afterFirst = outbound.filter((message) => message.t === "state" && message.to === guestId);
+        const afterFirst = outbound.filter(
+            (message) => message.t === "state" && message.to === guestId,
+        );
         outbound.length = 0;
         handleHostInboundMessage(
             guestId,
-            JSON.stringify({ t: "presence", n: "Guest", reason: "beat" })
+            JSON.stringify({ t: "presence", n: "Guest", reason: "beat" }),
         );
-        const afterSecond = outbound.filter((message) => message.t === "state" && message.to === guestId);
+        const afterSecond = outbound.filter(
+            (message) => message.t === "state" && message.to === guestId,
+        );
 
         return {
             afterFirstCount: afterFirst.length,
@@ -130,7 +134,7 @@ test("host presence heartbeat triggers state broadcast every cycle", async ({ pa
             firstRound: afterFirst[0] ? afterFirst[0].round : null,
             firstRevealed: afterFirst[0] ? afterFirst[0].revealed : null,
             firstTitle: afterFirst[0] ? afterFirst[0].roundTitle : null,
-            broadcastStillWorks: typeof broadcastState === "function"
+            broadcastStillWorks: typeof broadcastState === "function",
         };
     });
 
@@ -146,8 +150,8 @@ test("stale mqtt health checks close channel only once per recovery", async ({ p
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const { onHostChannelOpen, runGuestMqttHealthCheckForTest } = await import("/js/guest.js");
+        const { state } = window.__planningPokerE2E;
+        const { onHostChannelOpen, runGuestMqttHealthCheckForTest } = window.__planningPokerE2E;
 
         let closeCount = 0;
         const channel = {
@@ -158,7 +162,7 @@ test("stale mqtt health checks close channel only once per recovery", async ({ p
             send() {},
             close() {
                 closeCount += 1;
-            }
+            },
         };
 
         state.role = "guest";
@@ -173,7 +177,7 @@ test("stale mqtt health checks close channel only once per recovery", async ({ p
 
         return {
             closeCount,
-            phase: state.guestConnectionPhase
+            phase: state.guestConnectionPhase,
         };
     });
 
@@ -185,13 +189,11 @@ test("guest remote state persists across connection status changes", async ({ pa
     await openHome(page);
 
     const result = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        const {
-            handleGuestInboundMessage,
-            getGuestSessionDiagnosticsForTest
-        } = await import("/js/guest.js");
-        const { renderTable } = await import("/js/render.js");
-        const { showView } = await import("/js/ui.js");
+        const { state } = window.__planningPokerE2E;
+        const { handleGuestInboundMessage, getGuestSessionDiagnosticsForTest } =
+            window.__planningPokerE2E;
+        const { renderTable } = window.__planningPokerE2E;
+        const { showView } = window.__planningPokerE2E;
 
         state.role = "guest";
         state.displayName = "GuestState";
@@ -204,16 +206,30 @@ test("guest remote state persists across connection status changes", async ({ pa
             started: true,
             revealed: false,
             players: [
-                { id: "host-1", name: "Host", connected: true, isHost: true, voted: false, vote: null },
-                { id: "guest-1", name: "GuestState", connected: true, isHost: false, voted: true, vote: null }
-            ]
+                {
+                    id: "host-1",
+                    name: "Host",
+                    connected: true,
+                    isHost: true,
+                    voted: false,
+                    vote: null,
+                },
+                {
+                    id: "guest-1",
+                    name: "GuestState",
+                    connected: true,
+                    isHost: false,
+                    voted: true,
+                    vote: null,
+                },
+            ],
         };
 
         const channel = {
             readyState: "open",
             transportType: "webrtc",
             send() {},
-            close() {}
+            close() {},
         };
         state.guestChannel = channel;
         showView("table");
@@ -233,10 +249,10 @@ test("guest remote state persists across connection status changes", async ({ pa
                 revealed: true,
                 players: state.guestRemoteState.players.map((player) => ({
                     ...player,
-                    vote: player.id === "guest-1" ? "8" : "5"
-                }))
+                    vote: player.id === "guest-1" ? "8" : "5",
+                })),
             }),
-            channel
+            channel,
         );
         const afterReveal = getGuestSessionDiagnosticsForTest();
 
@@ -275,7 +291,7 @@ test("live mqtt guest survives simulated idle and syncs host reveal", async ({ b
     await setConnectionPreferences(host, {
         mode: "mqttQuickJoin",
         hostRequireApprovalFirstJoin: true,
-        hostAutoApproveKnownRejoin: true
+        hostAutoApproveKnownRejoin: true,
     });
     await setConnectionModeForPages([host, guest], "mqttQuickJoin");
     await createHost(host, "HostIdle");
@@ -290,23 +306,25 @@ test("live mqtt guest survives simulated idle and syncs host reveal", async ({ b
     await guest.evaluate(async () => {
         window.__PP_TEST_MQTT_INBOUND_STALE_MS = 120;
         window.__PP_TEST_MQTT_HEALTH_CHECK_MS = 40;
-        const { ageGuestMqttInboundForTest, runGuestMqttHealthCheckForTest } = await import("/js/guest.js");
+        const { ageGuestMqttInboundForTest, runGuestMqttHealthCheckForTest } =
+            window.__planningPokerE2E;
         ageGuestMqttInboundForTest(200);
         runGuestMqttHealthCheckForTest();
     });
 
-    await expect.poll(
-        async () => guest.locator("#connectionStatusText").textContent(),
-        { timeout: 20_000 }
-    ).toMatch(/unstable|Reconnecting|Connected to host/i);
+    await expect
+        .poll(async () => guest.locator("#connectionStatusText").textContent(), { timeout: 20_000 })
+        .toMatch(/unstable|Reconnecting|Connected to host/i);
 
-    await expect.poll(
-        async () => {
-            const text = await guest.locator("#connectionStatusText").textContent();
-            return /Connected to host/i.test(String(text || ""));
-        },
-        { timeout: 45_000 }
-    ).toBe(true);
+    await expect
+        .poll(
+            async () => {
+                const text = await guest.locator("#connectionStatusText").textContent();
+                return /Connected to host/i.test(String(text || ""));
+            },
+            { timeout: 45_000 },
+        )
+        .toBe(true);
 
     await host.locator("#hostRevealBtn").click();
     const hostCard = playerCard(host, "HostIdle");
@@ -316,7 +334,7 @@ test("live mqtt guest survives simulated idle and syncs host reveal", async ({ b
     await expect(guest.locator("#statAverage")).toHaveText("6.50");
 
     const afterReveal = await guest.evaluate(async () => {
-        const { getGuestSessionDiagnosticsForTest } = await import("/js/guest.js");
+        const { getGuestSessionDiagnosticsForTest } = window.__planningPokerE2E;
         return getGuestSessionDiagnosticsForTest();
     });
     expect(afterReveal.remoteState.revealed).toBe(true);
