@@ -6,6 +6,10 @@ import { renderHostLobby, renderTable } from "./render.js";
 import { createMqttRelayChannel } from "./mqtt-relay.js";
 import { saveSessionSnapshot } from "./persistence.js";
 import { closePeerEntry } from "./webrtc.js";
+import {
+    isDisplayNameTaken,
+    sendDisplayNameTakenReject
+} from "./display-name-collision.js";
 import { KICK_DISCONNECT_DELAY_MS, PENDING_REJOIN_MAX, sanitizeHostName } from "./host-shared.js";
 import { broadcastState } from "./host-session.js";
 import { sendJson } from "./messaging.js";
@@ -320,6 +324,11 @@ export function onHostRecoveryRelayMessage(rawData, fromGuestId, relayChannel) {
         const roomPin = String(state.hostRoomPin || "").trim();
         if (roomPin && guestPin !== roomPin) {
             sendJson(relayChannel, { t: "rejoinReject", to: guestId, reason: "Invalid room PIN." });
+            return;
+        }
+
+        if (isDisplayNameTaken(state, guestId, guestName, sanitizeHostName)) {
+            sendDisplayNameTakenReject(sendJson, relayChannel, guestId);
             return;
         }
 

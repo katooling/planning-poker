@@ -1,3 +1,4 @@
+import { DISPLAY_NAME_TAKEN_CODE } from "./display-name-collision.js";
 import { state } from "./state.js";
 import { log } from "./log.js";
 import { decodeSignalCode, encodeSignalCode, validateSignalPayload } from "./signaling.js";
@@ -1033,16 +1034,24 @@ export function handleGuestInboundMessage(rawData, channel) {
         const rejectReason = typeof message.reason === "string" && message.reason.trim()
             ? message.reason.trim()
             : "Host approval required.";
-        updateConnectionStatus(false, "Reconnect pending approval");
-        const retryAllowed = canAttemptGuestAutoRejoin();
-        const isPinError = /invalid room pin/i.test(rejectReason);
+        const rejectCode = typeof message.code === "string" ? message.code.trim() : "";
+        const isDisplayNameTaken = rejectCode === DISPLAY_NAME_TAKEN_CODE;
+        const isPinError = !isDisplayNameTaken && /invalid room pin/i.test(rejectReason);
+        updateConnectionStatus(
+            false,
+            isDisplayNameTaken ? "Disconnected" : "Reconnect pending approval"
+        );
+        const retryAllowed = canAttemptGuestAutoRejoin() && !isDisplayNameTaken;
         if (isJoinLinkContext()) {
             notifyQuickJoinGuest({
                 message: rejectReason,
-                type: "warn",
-                escalate: true,
+                type: isDisplayNameTaken ? "error" : "warn",
+                phase: isDisplayNameTaken ? "form" : undefined,
+                escalate: isPinError,
                 focusPin: isPinError
             });
+        } else if (isDisplayNameTaken) {
+            showNotice(els.guestConnectNotice, rejectReason, "error");
         } else {
             const retryHint = retryAllowed
                 ? " Retrying shortly..."

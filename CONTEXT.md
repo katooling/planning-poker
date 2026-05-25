@@ -57,8 +57,12 @@ The guest must submit from invite home or plain join before any connection attem
 _Avoid_: Auto-join, quick connect on load
 
 **Taken display name**:
-A display name already used in the session by a connected guest or by a guest waiting for host approval (including pending rejoin). Disconnected roster entries do not count. The host’s name counts; two different guests may not share a name while either is connected or pending.
+A display name already used in the session by a connected guest or by a guest waiting for host approval (including pending rejoin). Disconnected roster entries do not count. The host’s name counts; two different guests may not share a name while either is connected or pending. The joining guest’s own guest id is never counted against them.
 _Avoid_: Duplicate name, name clash
+
+**Own-guest join exemption**:
+A relay join from guest id X may reuse a display name already held in the roster or pending queue by X, but not a name held by any other id.
+_Avoid_: Self collision skip, same-id exception
 
 **Session-unique display name**:
 Each connected or pending guest must use a distinct display name within the session (after the app’s normal name sanitization). Comparison is case-sensitive (`Alex` and `alex` are different names).
@@ -71,6 +75,22 @@ _Avoid_: Name conflict error, duplicate profile
 **Collision feedback (invite home)**:
 After a collision on the join link flow, the guest remains on invite home with an error notice and an editable name field — not the guest connect screen and not a waiting-for-approval state.
 _Avoid_: PIN-style escalation, stuck waiting UI
+
+**Collision rejection message**:
+Tells the guest the name is already in use, to pick another name, and that the host may need to remove the other guest first.
+_Avoid_: PIN error copy, generic join failed
+
+**Join-time name gate**:
+Session-unique display names are enforced only when a guest attempts relay join, not on later in-session actions (rename is separate work).
+_Avoid_: Join validation, name check on connect
+
+**Terminal collision rejection**:
+A name-collision reject does not trigger guest auto-rejoin or join retries; the guest must change name and submit again.
+_Avoid_: Failed join retry, recoverable reject
+
+**Join rejection code**:
+A machine-readable tag on host relay rejects (e.g. name taken vs invalid PIN) so the guest can choose the right feedback without parsing message text.
+_Avoid_: Error code enum, reject reason ID
 
 **Host-authoritative join gate**:
 The host session is the source of truth for whether a guest may enter; the guest shows errors only after the host rejects or accepts the attempt.
