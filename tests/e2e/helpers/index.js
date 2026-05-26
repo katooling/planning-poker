@@ -10,6 +10,12 @@ const { createHost, startGameFromLobby, startGameFromLobbyStrict } = require("./
 const { connectGuestToHost, waitForGuestConnection } = require("./guest");
 const { readCode, decodeSignalCodeInPage } = require("./code");
 const { playerCard } = require("./locators");
+const {
+    waitForHostRecoveryRelayOpen,
+    isHostRecoveryRelayOpen,
+    requestMqttGuestJoin,
+    expectHostPendingGuest
+} = require("./mqtt");
 
 module.exports = {
     openHome,
@@ -25,5 +31,9 @@ module.exports = {
     waitForGuestConnection,
     readCode,
     decodeSignalCodeInPage,
-    playerCard
+    playerCard,
+    waitForHostRecoveryRelayOpen,
+    isHostRecoveryRelayOpen,
+    requestMqttGuestJoin,
+    expectHostPendingGuest
 };

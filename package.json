@@ -4,7 +4,8 @@
   "description": "Static planning-poker app with no backend and no serverless functions.",
   "private": true,
   "scripts": {
-    "test": "npm run test:e2e",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --test tests/unit/**/*.test.mjs",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",

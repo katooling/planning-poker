@@ -6,7 +6,10 @@ const {
     readCode,
     setConnectionMode,
     setConnectionModeForPages,
-    setConnectionPreferences
+    setConnectionPreferences,
+    isHostRecoveryRelayOpen,
+    requestMqttGuestJoin,
+    expectHostPendingGuest
 } = require("../helpers");
 
 test("plain home hides join link status and room PIN until invite or join flow", async ({ page }) => {
@@ -110,43 +113,17 @@ test("mqtt quick join connects guest with room code and host approval", async ({
     });
     await setConnectionMode(guest, "mqttQuickJoin");
     await createHost(host, "HostQuickJoin");
-    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
 
-    await guest.locator("#displayNameInput").fill("GuestQuickJoin");
-    await guest.locator("#joinRoomBtn").click();
-    await guest.locator("#guestRoomCodeInput").fill(roomCode);
-    await guest.locator("#connectGuestRoomBtn").click();
+    const relayOpen = await isHostRecoveryRelayOpen(host);
+    test.skip(!relayOpen, "Host MQTT recovery relay did not open in this environment.");
+
+    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
+    await requestMqttGuestJoin(guest, { roomCode, guestName: "GuestQuickJoin" });
+    await expectHostPendingGuest(host, "GuestQuickJoin", { guestPage: guest });
 
     const pendingRow = host.locator("#hostPendingRejoinList .row-between", { hasText: "GuestQuickJoin" }).first();
-    const guestTable = guest.locator("#tableView.active");
-    const guestConnectView = guest.locator("#guestConnectView.active");
-    const guestConnectNotice = guest.locator("#guestConnectNotice");
-    await expect.poll(
-        async () => {
-            const pendingVisible = await pendingRow.isVisible().catch(() => false);
-            const tableVisible = await guestTable.isVisible().catch(() => false);
-            const waitingForApproval = await guestConnectNotice.textContent()
-                .then((text) => /Waiting for host approval|Requesting host approval/.test(String(text || "")))
-                .catch(() => false);
-            return pendingVisible || tableVisible || waitingForApproval;
-        },
-        {
-            timeout: 15_000,
-            intervals: [300, 600, 1000]
-        }
-    ).toBeTruthy();
-
-    const pendingVisible = await pendingRow.isVisible().catch(() => false);
-    const tableVisible = await guestTable.isVisible().catch(() => false);
-    if (pendingVisible) {
-        await pendingRow.getByRole("button", { name: "Approve" }).click();
-        await expect(guestTable).toBeVisible({ timeout: 12_000 });
-        return;
-    }
-    if (!tableVisible) {
-        await expect(guestConnectView).toBeVisible();
-        await expect(guestConnectNotice).toContainText(/Waiting for host approval|Requesting host approval/);
-    }
+    await pendingRow.getByRole("button", { name: "Approve" }).click();
+    await expect(guest.locator("#tableView.active")).toBeVisible({ timeout: 12_000 });
 });
 
 test("mqtt quick join delayed host approval still auto-enters table", async ({ browser }) => {

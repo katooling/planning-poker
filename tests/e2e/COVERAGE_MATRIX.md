@@ -34,7 +34,9 @@ Legend:
 | Kick guest from lobby | host | Covered | `game-lifecycle.spec.js` |
 | Back to home | host | Covered | `journeys.navigation.spec.js` |
 | Escape to home | host | Covered | `interaction-and-errors.spec.js` |
-| Approve/reject pending rejoin | host | Covered | `persistence.spec.js`, `resilience.rejoin.spec.js` |
+| Approve/reject pending rejoin | host | Covered | `persistence.spec.js`, `resilience.rejoin.spec.js`, `relay-join.contract.spec.js` |
+| Relay rejoin queues pending (host panel) | host | Covered | `relay-join.contract.spec.js`, `host-pending-join.spec.js` |
+| Display-name join gate rules | host | Covered | `tests/unit/display-name-collision.test.mjs` |
 
 ## Guest Connect
 

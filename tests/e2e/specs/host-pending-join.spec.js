@@ -3,18 +3,11 @@ const {
     createHost,
     openHome,
     setConnectionMode,
-    setConnectionPreferences
+    setConnectionPreferences,
+    isHostRecoveryRelayOpen,
+    requestMqttGuestJoin,
+    expectHostPendingGuest
 } = require("../helpers");
-
-async function waitForHostRecoveryRelayOpen(hostPage, timeoutMs = 25_000) {
-    await expect.poll(
-        async () => hostPage.evaluate(async () => {
-            const { state } = await import("/js/state.js");
-            return state.hostRecoveryRelay && state.hostRecoveryRelay.readyState === "open";
-        }),
-        { timeout: timeoutMs, intervals: [250, 500, 1000] }
-    ).toBe(true);
-}
 
 test("host pending banner lists guest after relay rejoin is queued", async ({ page }) => {
     await openHome(page);
@@ -25,7 +18,6 @@ test("host pending banner lists guest after relay rejoin is queued", async ({ pa
         const { onHostRecoveryRelayMessage } = await import("/js/host-peers.js");
         const { renderHostLobby } = await import("/js/render.js");
 
-        const hostId = state.localId;
         const guestId = "guest-queue-test";
         state.hostRequireApprovalFirstJoin = true;
         state.hostPendingRejoinRequests = [];
@@ -62,25 +54,12 @@ test("host pending banner appears when guest requests mqtt join approval", async
     await setConnectionMode(guest, "mqttQuickJoin");
     await createHost(host, "HostPendingBanner");
 
-    let relayOpen = false;
-    try {
-        await waitForHostRecoveryRelayOpen(host, 15_000);
-        relayOpen = true;
-    } catch (_error) {
-        relayOpen = false;
-    }
+    const relayOpen = await isHostRecoveryRelayOpen(host);
     test.skip(!relayOpen, "Host MQTT recovery relay did not open in this environment.");
 
     const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
-
-    await guest.locator("#displayNameInput").fill("GuestPendingBanner");
-    await guest.locator("#joinRoomBtn").click();
-    await guest.locator("#guestRoomCodeInput").fill(roomCode);
-    await guest.locator("#connectGuestRoomBtn").click();
-
-    await expect(host.getByTestId("banner-pending-rejoin")).toBeVisible({ timeout: 12_000 });
-    await expect(host.locator("#hostPendingRejoinList")).toContainText("GuestPendingBanner");
-    await expect(guest.locator("#tableView.active")).toHaveCount(0);
+    await requestMqttGuestJoin(guest, { roomCode, guestName: "GuestPendingBanner" });
+    await expectHostPendingGuest(host, "GuestPendingBanner", { guestPage: guest });
 });
 
 test("host presence handler survives guest presence ping after approval", async ({ page }) => {
