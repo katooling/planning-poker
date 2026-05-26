@@ -1,6 +1,7 @@
 import { VOTE_VALUES, state } from "./state.js";
 import { els, escapeHtml, updateConnectionStatus } from "./ui.js";
 import { getGuestConnectionPresentation } from "./guest-connection-status.js";
+import { getGuestRejoinAttempts, getGuestRejoinMaxRetries } from "./guest.js";
 import { getCurrentRevealFlag, getHostPlayersAsArray, getRenderablePlayersForUI, renderStatsValues } from "./game.js";
 
 let voteSelectHandler = null;
@@ -50,6 +51,7 @@ export function renderHostLobby() {
     const canStart = connectedCount >= 2;
     els.hostStartGameBtn.disabled = state.session.started ? false : !canStart;
     els.hostStartGameBtn.textContent = state.session.started ? "Return to Table" : "Start Game";
+    renderHostStartGameHint(state.session.started, canStart);
     els.copyHostResponseCodeBtn.disabled = !state.hostResponseCodeRaw;
     els.copyHostResponseCodeFormattedBtn.disabled = !state.hostResponseCodeRaw;
 
@@ -81,6 +83,120 @@ export function renderHostLobby() {
     }
     if (els.hostRoomPinInput && document.activeElement !== els.hostRoomPinInput) {
         els.hostRoomPinInput.value = state.hostRoomPin || "";
+    }
+}
+
+function renderHostStartGameHint(started, canStart) {
+    const hint = els.hostStartGameHint;
+    const button = els.hostStartGameBtn;
+    if (!hint) return;
+    if (!started && !canStart) {
+        const text = "Waiting for at least one connected guest.";
+        hint.textContent = text;
+        hint.hidden = false;
+        if (button) {
+            button.title = text;
+            button.setAttribute("aria-label", "Start Game — " + text);
+        }
+        return;
+    }
+    hint.textContent = "";
+    hint.hidden = true;
+    if (button) {
+        button.removeAttribute("title");
+        button.removeAttribute("aria-label");
+    }
+}
+
+const RECONNECT_BANNER_COPY = {
+    unstable: {
+        type: "info",
+        title: "Connection unstable — recovering…",
+        body: "We're trying to keep your link open. Stay on this page.",
+        showRetry: false,
+        showFallback: false
+    },
+    reconnecting: {
+        type: "warn",
+        title: "Reconnecting to host…",
+        body: "",
+        showRetry: true,
+        showFallback: false
+    },
+    exhausted: {
+        type: "error",
+        title: "Could not reconnect automatically.",
+        body: "Try again now, or use the manual fallback.",
+        showRetry: true,
+        showFallback: true
+    },
+    offline: {
+        type: "error",
+        title: "Disconnected from host.",
+        body: "Click Retry now to try again.",
+        showRetry: true,
+        showFallback: true
+    }
+};
+
+function renderGuestReconnectBanner(presentation) {
+    const banner = els.guestReconnectBanner;
+    if (!banner) return;
+    const titleEl = els.guestReconnectBannerTitle;
+    const bodyEl = els.guestReconnectBannerBody;
+    const retryBtn = els.guestReconnectRetryBtn;
+    const fallbackBtn = els.guestReconnectFallbackBtn;
+
+    const phase = state.guestConnectionPhase;
+    const attempts = getGuestRejoinAttempts();
+    const max = getGuestRejoinMaxRetries();
+
+    let key = null;
+    if (state.role !== "guest" || state.currentView !== "table") {
+        key = null;
+    } else if (presentation && presentation.online) {
+        key = null;
+    } else if (phase === "unstable") {
+        key = "unstable";
+    } else if (phase === "reconnecting") {
+        key = attempts >= max ? "exhausted" : "reconnecting";
+    } else if (phase === "offline") {
+        key = attempts >= max ? "exhausted" : "offline";
+    }
+
+    if (!key) {
+        banner.hidden = true;
+        banner.classList.remove("info", "warn", "error");
+        if (retryBtn) retryBtn.hidden = true;
+        if (fallbackBtn) fallbackBtn.hidden = true;
+        return;
+    }
+
+    const copy = RECONNECT_BANNER_COPY[key];
+    banner.hidden = false;
+    banner.classList.remove("info", "warn", "error");
+    banner.classList.add(copy.type);
+
+    let title = copy.title;
+    if (key === "reconnecting") {
+        const display = Math.max(attempts, 1);
+        title = "Reconnecting to host… (" + display + "/" + max + ")";
+    }
+    if (titleEl) titleEl.textContent = title;
+    if (bodyEl) bodyEl.textContent = copy.body || "";
+    if (retryBtn) retryBtn.hidden = !copy.showRetry;
+    if (fallbackBtn) fallbackBtn.hidden = !copy.showFallback;
+
+    const palette = els.votePalette;
+    if (palette) {
+        palette.classList.add("disabled");
+    }
+}
+
+function clearVotePaletteDisabled() {
+    const palette = els.votePalette;
+    if (palette) {
+        palette.classList.remove("disabled");
     }
 }
 
@@ -263,10 +379,18 @@ export function renderTable() {
     if (isHost) {
         const connected = players.filter((p) => p.connected).length;
         updateConnectionStatus(true, "Hosting " + Math.max(0, connected - 1) + " guest(s)");
+        if (els.guestReconnectBanner) {
+            els.guestReconnectBanner.hidden = true;
+        }
+        clearVotePaletteDisabled();
         return;
     }
     if (guestConnection) {
         updateConnectionStatus(guestConnection.online, guestConnection.text);
+    }
+    renderGuestReconnectBanner(guestConnection);
+    if (isGuestConnected) {
+        clearVotePaletteDisabled();
     }
 }
 

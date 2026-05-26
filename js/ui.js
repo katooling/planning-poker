@@ -88,6 +88,12 @@ export const els = {
     hostRevealBtn: document.getElementById("hostRevealBtn"),
     hostResetBtn: document.getElementById("hostResetBtn"),
     tableNotice: document.getElementById("tableNotice"),
+    guestReconnectBanner: document.getElementById("guestReconnectBanner"),
+    guestReconnectBannerTitle: document.getElementById("guestReconnectBannerTitle"),
+    guestReconnectBannerBody: document.getElementById("guestReconnectBannerBody"),
+    guestReconnectRetryBtn: document.getElementById("guestReconnectRetryBtn"),
+    guestReconnectFallbackBtn: document.getElementById("guestReconnectFallbackBtn"),
+    hostStartGameHint: document.getElementById("hostStartGameHint"),
     iceSettingsBtn: document.getElementById("iceSettingsBtn"),
     iceSettingsDialog: document.getElementById("iceSettingsDialog"),
     defaultIceServersList: document.getElementById("defaultIceServersList"),
@@ -145,10 +151,35 @@ export function showNotice(element, text, type, timeoutMs) {
         const currentText = text;
         setTimeout(() => {
             if (element.textContent === currentText) {
+                element.textContent = "";
                 element.classList.remove("visible");
             }
         }, timeoutMs);
     }
+}
+
+const NAME_INPUT_ERROR_CLASS = "name-input-error";
+const NAME_INPUT_ERROR_FALLBACK_MS = 1200;
+
+export function flagDisplayNameInputError() {
+    const input = els.displayNameInput;
+    if (!input) return;
+    input.classList.remove(NAME_INPUT_ERROR_CLASS);
+    // Force reflow so the animation restarts on repeat triggers.
+    void input.offsetWidth;
+    input.classList.add(NAME_INPUT_ERROR_CLASS);
+    try {
+        input.focus({ preventScroll: false });
+        input.select();
+    } catch (_error) {
+        // Ignore focus/select errors in headless contexts.
+    }
+    const clear = () => {
+        input.classList.remove(NAME_INPUT_ERROR_CLASS);
+        input.removeEventListener("animationend", clear);
+    };
+    input.addEventListener("animationend", clear);
+    setTimeout(clear, NAME_INPUT_ERROR_FALLBACK_MS);
 }
 
 export async function copyTextWithFeedback(text, button, doneLabel) {

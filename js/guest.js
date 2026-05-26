@@ -12,7 +12,7 @@ import {
     shutdownHost,
     waitForIceComplete
 } from "./webrtc.js";
-import { els, setGuestStep, setSignalCodeDisplay, showNotice, showView, updateConnectionStatus } from "./ui.js";
+import { els, flagDisplayNameInputError, setGuestStep, setSignalCodeDisplay, showNotice, showView, updateConnectionStatus } from "./ui.js";
 import { canGuestSendToHost, getGuestConnectionPresentation } from "./guest-connection-status.js";
 import {
     clearJoinLinkContext,
@@ -51,7 +51,11 @@ let guestAutoRejoinAttemptId = 0;
 let guestQuickJoinAttemptId = 0;
 let guestAcceptedDisplayName = "";
 
-function getGuestRejoinMaxRetries() {
+export function getGuestRejoinAttempts() {
+    return guestRejoinAttempts;
+}
+
+export function getGuestRejoinMaxRetries() {
     const testLimit = Number(window.__PP_TEST_REJOIN_MAX_RETRIES);
     if (Number.isFinite(testLimit) && testLimit > 0) {
         return Math.floor(testLimit);
@@ -502,8 +506,8 @@ export function onHostChannelClose(channel) {
     setGuestConnectionPhase(canAttemptGuestAutoRejoin() ? "reconnecting" : "offline");
     const presentation = getGuestConnectionPresentation();
     updateConnectionStatus(presentation.online, presentation.text);
-    if (state.role === "guest") {
-        showNotice(els.tableNotice, "Connection closed.", "warn");
+    if (state.role === "guest" && state.currentView === "table") {
+        renderTable();
     }
     if (canAttemptGuestAutoRejoin()) {
         scheduleGuestAutoRejoin("channel-closed", true);
@@ -561,6 +565,16 @@ export async function connectGuestByRoomCode(roomCode, pin = "", options = {}) {
 export function triggerGuestAutoRejoin(reason = "manual") {
     if (!canAttemptGuestAutoRejoin()) return;
     scheduleGuestAutoRejoin(reason, true);
+}
+
+export function stopGuestAutoRejoin() {
+    state.guestAutoRejoinEnabled = false;
+    guestAwaitingRejoinAck = false;
+    guestMqttRecoveryInFlight = false;
+    clearGuestRejoinTimer();
+    clearGuestJoinRetryTimer();
+    clearGuestDisconnectedRecoveryTimer();
+    stopGuestMqttHealthLoop();
 }
 
 export function runGuestMqttHealthCheckForTest() {
@@ -804,11 +818,9 @@ async function attemptGuestAutoRejoin(reason) {
     guestAwaitingRejoinAck = true;
     setGuestConnectionPhase("reconnecting");
     updateConnectionStatus(false, getGuestConnectionPresentation().text);
-    showNotice(
-        els.tableNotice,
-        "Trying to reconnect (" + guestRejoinAttempts + "/" + getGuestRejoinMaxRetries() + ")...",
-        "warn"
-    );
+    if (state.currentView === "table") {
+        renderTable();
+    }
     log.info("guest", "Guest auto-rejoin attempt", { reason, attempt: guestRejoinAttempts });
 
     const roomId = state.roomId;
@@ -844,17 +856,14 @@ async function attemptGuestAutoRejoin(reason) {
             state.guestChannel = null;
             if (canAttemptGuestAutoRejoin()) {
                 updateConnectionStatus(false, "Reconnecting to host...");
+                if (state.currentView === "table") renderTable();
                 scheduleGuestAutoRejoin("relay-close");
                 return;
             }
             guestAwaitingRejoinAck = false;
             setGuestConnectionPhase("offline");
             updateConnectionStatus(false, "Reconnect unavailable");
-            showNotice(
-                els.tableNotice,
-                "Could not reconnect automatically. Click Reconnect to generate a fresh join code.",
-                "error"
-            );
+            if (state.currentView === "table") renderTable();
         },
         onMessage: (payload) => {
             if (attemptId !== guestAutoRejoinAttemptId) return;
@@ -863,23 +872,16 @@ async function attemptGuestAutoRejoin(reason) {
         onFailure: (errorInfo) => {
             if (attemptId !== guestAutoRejoinAttemptId) return;
             const reasonText = errorInfo && errorInfo.reason ? errorInfo.reason : "unknown";
-            showNotice(
-                els.tableNotice,
-                "Reconnect attempt failed (" + reasonText + "). Retrying...",
-                "warn"
-            );
+            log.warn("guest", "Reconnect relay failure", { reason: reasonText });
             if (canAttemptGuestAutoRejoin()) {
+                if (state.currentView === "table") renderTable();
                 scheduleGuestAutoRejoin("relay-failure");
                 return;
             }
             guestAwaitingRejoinAck = false;
             setGuestConnectionPhase("offline");
             updateConnectionStatus(false, "Reconnect unavailable");
-            showNotice(
-                els.tableNotice,
-                "Could not reconnect automatically. Click Reconnect to generate a fresh join code.",
-                "error"
-            );
+            if (state.currentView === "table") renderTable();
         }
     });
     state.guestChannel = relayChannel;
@@ -1062,8 +1064,12 @@ export function handleGuestInboundMessage(rawData, channel) {
                 escalate: isPinError,
                 focusPin: isPinError
             });
+            if (isDisplayNameTaken) {
+                flagDisplayNameInputError();
+            }
         } else if (isDisplayNameTaken) {
             showNotice(els.guestConnectNotice, rejectReason, "error");
+            flagDisplayNameInputError();
         } else {
             const retryHint = retryAllowed
                 ? " Retrying shortly..."
@@ -1108,6 +1114,7 @@ export function handleGuestInboundMessage(rawData, channel) {
         revertGuestDisplayNameToAccepted();
         const noticeTarget = state.currentView === "table" ? els.tableNotice : els.guestConnectNotice;
         showNotice(noticeTarget, rejectReason, "error");
+        flagDisplayNameInputError();
         saveSessionSnapshot();
         return;
     }

@@ -13,12 +13,125 @@ test("host session snapshot restores table context after refresh", async ({ page
     await expect(page.locator("#tableView.active")).toBeVisible();
     await expect(page.locator("#tableSubtitle")).toContainText("Round 1 - Resilience");
     await expect(page.locator('#votePalette .vote-card.selected[data-vote="13"]')).toBeVisible();
-    await expect(page.locator("#tableNotice")).toContainText("Session restored");
+    await expect(page.locator("#tableNotice")).toContainText("Room restored");
     await expect(page.locator("#connectionStatusText")).toContainText("Hosting 0 guest(s)");
 
     await page.locator("#leaveSessionBtn").click();
     await expect(page.locator("#hostLobbyView.active")).toBeVisible();
     await expect(page.locator("#hostPlayerList")).toContainText("HostPersist");
+});
+
+test("host restored table notice resolves when known guest rejoins", async ({ page }) => {
+    await openHome(page);
+    await page.evaluate((snapshot) => {
+        window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
+    }, {
+        v: 1,
+        savedAt: Date.now(),
+        role: "host",
+        localId: "hostrestoreguest",
+        displayName: "Host Restore Guest",
+        currentView: "table",
+        roomId: "room-restore-guest",
+        selectedVote: null,
+        hostApprovedGuestIds: ["guest-restore-1"],
+        session: {
+            round: 1,
+            roundTitle: "",
+            started: true,
+            revealed: false,
+            players: {
+                hostrestoreguest: {
+                    id: "hostrestoreguest",
+                    name: "Host Restore Guest",
+                    connected: true,
+                    vote: null,
+                    isHost: true
+                },
+                "guest-restore-1": {
+                    id: "guest-restore-1",
+                    name: "Guest Restore",
+                    connected: true,
+                    vote: null,
+                    isHost: false
+                }
+            }
+        }
+    });
+
+    await page.reload();
+    await expect(page.locator("#tableNotice")).toContainText("Room restored. Reopening guest auto-rejoin.");
+    await expect(page.locator("#connectionStatusText")).toContainText("Hosting 0 guest(s)");
+
+    await page.evaluate(async () => {
+        const { state } = await import("/js/state.js");
+        const { markHostRestoreRelayReady } = await import("/js/host-restore-status.js");
+        const { onHostRecoveryRelayMessage } = await import("/js/host-peers.js");
+
+        state.hostRecoveryRelay = {
+            readyState: "open",
+            send() {},
+            close() {}
+        };
+        markHostRestoreRelayReady();
+        onHostRecoveryRelayMessage(
+            JSON.stringify({ t: "rejoin", n: "Guest Restore", pin: "" }),
+            "guest-restore-1",
+            state.hostRecoveryRelay
+        );
+    });
+
+    await expect(page.locator("#connectionStatusText")).toContainText("Hosting 1 guest(s)");
+    await expect(page.locator("#tableNotice")).toContainText("Room restored. All known guests are back online.");
+    await expect(page.locator("#tableNotice")).toBeHidden({ timeout: 5_000 });
+    await expect(page.locator("#tableNotice")).toHaveText("");
+});
+
+test("host restored table notice changes to guidance when guests do not return", async ({ page }) => {
+    await openHome(page);
+    await page.addInitScript(() => {
+        window.__PP_TEST_HOST_RESTORE_WAIT_MS = 50;
+    });
+    await page.evaluate((snapshot) => {
+        window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));
+    }, {
+        v: 1,
+        savedAt: Date.now(),
+        role: "host",
+        localId: "hostrestorestalled",
+        displayName: "Host Restore Stalled",
+        currentView: "table",
+        roomId: "room-restore-stalled",
+        selectedVote: null,
+        hostApprovedGuestIds: ["guest-stalled-1"],
+        session: {
+            round: 1,
+            roundTitle: "",
+            started: true,
+            revealed: false,
+            players: {
+                hostrestorestalled: {
+                    id: "hostrestorestalled",
+                    name: "Host Restore Stalled",
+                    connected: true,
+                    vote: null,
+                    isHost: true
+                },
+                "guest-stalled-1": {
+                    id: "guest-stalled-1",
+                    name: "Guest Stalled",
+                    connected: true,
+                    vote: null,
+                    isHost: false
+                }
+            }
+        }
+    });
+
+    await page.reload();
+    await expect(page.locator("#tableNotice")).toContainText(
+        "1 guest has not rejoined yet. Share the room link or ask them to refresh."
+    );
 });
 
 test("guest restored table shows reconnect journey after refresh", async ({ page }) => {
@@ -56,6 +169,79 @@ test("guest restored table shows reconnect journey after refresh", async ({ page
     await expect(page.locator("#tableSubtitle")).toContainText("Round 3 - Checkout Flow");
     await expect(page.locator("#tableNotice")).toContainText(/Session restored|Trying to reconnect/);
     await expect(page.locator("#connectionStatusText")).toContainText(/Reconnecting|Disconnected|Reconnect pending approval/);
+});
+
+test("guest reconnect banner opens manual fallback from table", async ({ page }) => {
+    await openHome(page);
+    await page.evaluate(async () => {
+        const { state } = await import("/js/state.js");
+        const { showView } = await import("/js/ui.js");
+        const { renderTable } = await import("/js/render.js");
+
+        state.role = "guest";
+        state.localId = "guestmanualfallback";
+        state.displayName = "GuestManualFallback";
+        state.roomId = "room-manual-fallback";
+        state.guestConnectionPhase = "offline";
+        state.guestAutoRejoinEnabled = true;
+        state.guestRemoteState = {
+            round: 1,
+            roundTitle: "Manual fallback",
+            started: true,
+            revealed: false,
+            players: [
+                { id: "host-manual", name: "HostManual", connected: false, isHost: true, voted: false, vote: null },
+                { id: "guestmanualfallback", name: "GuestManualFallback", connected: false, isHost: false, voted: false, vote: null }
+            ]
+        };
+        showView("table");
+        renderTable();
+    });
+
+    await expect(page.locator("#guestReconnectBanner")).toBeVisible();
+    await expect(page.locator("#guestReconnectFallbackBtn")).toBeVisible();
+
+    await page.locator("#guestReconnectFallbackBtn").click();
+
+    await expect(page.locator("#guestConnectView.active")).toBeVisible();
+    await expect(page.locator("#guestManualFallbackDetails")).toHaveJSProperty("open", true);
+    await expect(page.locator("#guestConnectNotice")).toContainText(/Manual fallback ready|Generating join code/);
+});
+
+test("guest can still select a local vote while reconnect banner is visible", async ({ page }) => {
+    await openHome(page);
+    await page.evaluate(async () => {
+        const { state } = await import("/js/state.js");
+        const { showView } = await import("/js/ui.js");
+        const { renderTable } = await import("/js/render.js");
+
+        state.role = "guest";
+        state.localId = "guestlocalvote";
+        state.displayName = "GuestLocalVote";
+        state.selectedVote = null;
+        state.roomId = "room-local-vote";
+        state.guestConnectionPhase = "offline";
+        state.guestAutoRejoinEnabled = true;
+        state.guestRemoteState = {
+            round: 1,
+            roundTitle: "Local vote",
+            started: true,
+            revealed: false,
+            players: [
+                { id: "host-local", name: "HostLocal", connected: false, isHost: true, voted: false, vote: null },
+                { id: "guestlocalvote", name: "GuestLocalVote", connected: false, isHost: false, voted: false, vote: null }
+            ]
+        };
+        showView("table");
+        renderTable();
+    });
+
+    await expect(page.locator("#guestReconnectBanner")).toBeVisible();
+    await expect(page.locator("#votePalette")).toHaveClass(/disabled/);
+
+    await page.locator('#votePalette .vote-card[data-vote="5"]').click();
+
+    await expect(page.locator('#votePalette .vote-card.selected[data-vote="5"]')).toBeVisible();
 });
 
 test("explicit leave clears session snapshot", async ({ page }) => {
@@ -235,7 +421,10 @@ test("guest table disconnect starts auto-rejoin loop", async ({ page }) => {
 
             return {
                 websocketCreates,
-                notice: String(els.tableNotice.textContent || ""),
+                bannerHidden: !!els.guestReconnectBanner && els.guestReconnectBanner.hidden,
+                bannerTitle: String(
+                    els.guestReconnectBannerTitle ? els.guestReconnectBannerTitle.textContent || "" : ""
+                ),
                 status: String(els.connectionStatusText.textContent || "")
             };
         } finally {
@@ -244,6 +433,7 @@ test("guest table disconnect starts auto-rejoin loop", async ({ page }) => {
     });
 
     expect(result.websocketCreates).toBeGreaterThan(0);
-    expect(result.notice).toMatch(/Trying to reconnect|Connection closed/);
+    expect(result.bannerHidden).toBe(false);
+    expect(result.bannerTitle).toMatch(/Reconnecting to host/);
     expect(result.status).toMatch(/Reconnecting|Disconnected/);
 });

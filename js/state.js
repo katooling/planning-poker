@@ -30,7 +30,8 @@ export const state = {
     guestJoinContext: null, // null | joinLink | guestConnect
     guestJoinPhase: "form", // form | connecting | waitingApproval | entering
     joinLinkRoomCode: "",
-    joinLinkSubtext: ""
+    joinLinkSubtext: "",
+    hostRestoreStatus: null
 };
 
 export function createShortId() {

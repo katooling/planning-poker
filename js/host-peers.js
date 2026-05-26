@@ -15,6 +15,11 @@ import {
 import { KICK_DISCONNECT_DELAY_MS, PENDING_REJOIN_MAX, sanitizeHostName } from "./host-shared.js";
 import { broadcastState } from "./host-session.js";
 import { sendJson } from "./messaging.js";
+import {
+    markHostRestoreRelayReady,
+    markHostRestoreRelayUnavailable,
+    updateHostRestoreStatusNotice
+} from "./host-restore-status.js";
 export { sendJson } from "./messaging.js";
 
 const HOST_RECOVERY_RETRY_BASE_MS = 1000;
@@ -42,12 +47,14 @@ export function startHostRecoveryRelayListener() {
             state.hostRecoveryRelay = channel;
             rebindRelayPeersToRecoveryChannel(channel, previousRecoveryRelay);
             lastClosedRecoveryRelay = null;
+            markHostRestoreRelayReady();
             log.info("host", "Host recovery relay ready", { roomId });
         },
         onClose: () => {
             if (state.hostRecoveryRelay !== relayChannel) return;
             lastClosedRecoveryRelay = relayChannel;
             state.hostRecoveryRelay = null;
+            markHostRestoreRelayUnavailable();
             log.warn("host", "Host recovery relay closed", { roomId });
             scheduleHostRecoveryRelayRetry("channel-closed", true);
         },
@@ -59,6 +66,7 @@ export function startHostRecoveryRelayListener() {
             lastClosedRecoveryRelay = relayChannel;
             state.hostRecoveryRelay = null;
             const reason = errorInfo && errorInfo.reason ? errorInfo.reason : "unknown";
+            markHostRestoreRelayUnavailable();
             log.warn("host", "Host recovery relay failed", { roomId, reason });
             scheduleHostRecoveryRelayRetry("failure-" + reason, true);
             if (state.currentView === "hostLobby") {
@@ -94,6 +102,7 @@ export function approvePendingRejoin(guestId) {
     broadcastState();
     renderHostLobby();
     renderTable();
+    updateHostRestoreStatusNotice();
 }
 
 export function rejectPendingRejoin(guestId) {
@@ -358,6 +367,7 @@ export function onHostRecoveryRelayMessage(rawData, fromGuestId, relayChannel) {
             broadcastState();
             renderHostLobby();
             renderTable();
+            updateHostRestoreStatusNotice();
             return;
         }
         if (!isKnownGuestId(guestId) && !state.hostRequireApprovalFirstJoin) {
@@ -366,6 +376,7 @@ export function onHostRecoveryRelayMessage(rawData, fromGuestId, relayChannel) {
             broadcastState();
             renderHostLobby();
             renderTable();
+            updateHostRestoreStatusNotice();
             return;
         }
         queuePendingRejoin(guestId, guestName);
@@ -572,6 +583,7 @@ function rebindRelayPeersToRecoveryChannel(relayChannel, previousRecoveryRelay) 
         broadcastState();
         renderHostLobby();
         renderTable();
+        updateHostRestoreStatusNotice();
         log.info("host", "Rebound relay peers to recovery channel", { peers: rebound });
     }
 }

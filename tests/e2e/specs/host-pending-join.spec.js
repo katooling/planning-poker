@@ -38,6 +38,11 @@ test("host pending banner lists guest after relay rejoin is queued", async ({ pa
 
     await expect(page.getByTestId("banner-pending-rejoin")).toBeVisible();
     await expect(page.locator("#hostPendingRejoinList")).toContainText("GuestQueue");
+    await expect.poll(async () => page.evaluate(() => {
+        const roomAccess = document.getElementById("hostRoomAccessPanel");
+        const banner = document.getElementById("hostPendingRejoinBanner");
+        return roomAccess && banner ? roomAccess.lastElementChild === banner : false;
+    })).toBe(true);
 });
 
 test("host pending banner appears when guest requests mqtt join approval", async ({ browser }) => {
@@ -93,6 +98,12 @@ test("host can approve and reject pending rejoins from the table", async ({ page
     await expect(page.locator("#tablePendingRejoinList")).toContainText("Table One");
     await expect(page.locator("#tablePendingRejoinList")).toContainText("Table Two");
     await expect(page.locator("#leaveSessionPendingBadge")).toHaveText("2");
+    await expect.poll(async () => page.evaluate(() => {
+        const votePanel = document.getElementById("votePalette")?.closest(".panel");
+        const banner = document.getElementById("tablePendingRejoinBanner");
+        if (!votePanel || !banner) return false;
+        return !!(votePanel.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING);
+    })).toBe(true);
 
     await page.locator("#tablePendingRejoinList").locator('[data-approve-rejoin="guest-table-1"]').click();
     await expect(page.locator("#tablePendingRejoinList")).not.toContainText("Table One");

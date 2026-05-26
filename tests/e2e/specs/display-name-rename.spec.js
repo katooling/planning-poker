@@ -254,12 +254,16 @@ test("guest handles nameReject without auto-rejoin", async ({ page }) => {
 
         return {
             displayName: state.displayName,
-            inputValue: document.getElementById("displayNameInput").value
+            inputValue: document.getElementById("displayNameInput").value,
+            inputHasError: document.getElementById("displayNameInput").classList.contains("name-input-error"),
+            activeElementId: document.activeElement ? document.activeElement.id : ""
         };
     });
 
     expect(result.displayName).toBe("GuestBeta");
     expect(result.inputValue).toBe("GuestBeta");
+    expect(result.inputHasError).toBe(true);
+    expect(result.activeElementId).toBe("displayNameInput");
 });
 
 test("guest rename to taken name is rejected without changing roster name", async ({ browser }) => {

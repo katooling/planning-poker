@@ -184,6 +184,29 @@ test("host start game button stays disabled until a guest is connected", async (
     await openHome(page);
     await createHost(page, "HostGate");
     await expect(page.locator("#hostStartGameBtn")).toBeDisabled();
+    await expect(page.locator("#hostStartGameHint")).toHaveText("Waiting for at least one connected guest.");
+    await expect(page.locator("#hostStartGameBtn")).toHaveAttribute(
+        "title",
+        "Waiting for at least one connected guest."
+    );
+
+    await page.evaluate(async () => {
+        const { state } = await import("/js/state.js");
+        const { renderHostLobby } = await import("/js/render.js");
+
+        state.session.players.guestgate = {
+            id: "guestgate",
+            name: "GuestGate",
+            connected: true,
+            vote: null,
+            isHost: false
+        };
+        renderHostLobby();
+    });
+
+    await expect(page.locator("#hostStartGameBtn")).toBeEnabled();
+    await expect(page.locator("#hostStartGameHint")).toBeHidden();
+    await expect(page.locator("#hostStartGameBtn")).not.toHaveAttribute("title", /Waiting/);
 });
 
 test("host can return to table after game has started", async ({ browser }) => {

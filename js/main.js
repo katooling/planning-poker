@@ -10,6 +10,7 @@ import {
 import {
     copyTextWithFeedback,
     els,
+    flagDisplayNameInputError,
     formatSignalCodeForDisplay,
     setGuestStep,
     setSignalCodeDisplay,
@@ -58,6 +59,7 @@ import {
     onRegenerateGuestOffer,
     sendJson as guestSendJson,
     startGuestSession,
+    stopGuestAutoRejoin,
     submitGuestDisplayNameRename,
     triggerGuestAutoRejoin
 } from "./guest.js";
@@ -66,6 +68,7 @@ import { clearSessionSnapshot, loadSessionSnapshot, saveSessionSnapshot } from "
 import { EMPTY_GUEST_JOIN_CODE_DISPLAY, EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
 import { sanitizeText } from "./sanitize.js";
 import { DISPLAY_NAME_TAKEN_REASON } from "./display-name-collision.js";
+import { beginHostRestoreStatus, clearHostRestoreStatus } from "./host-restore-status.js";
 import {
     getAuthoritativeDisplayName,
     isInDisplayNameSession,
@@ -252,6 +255,16 @@ function wireTableEvents() {
     els.hostRoundTitleInput.addEventListener("input", () => {
         onHostRoundTitleChange(els.hostRoundTitleInput.value);
     });
+    if (els.guestReconnectRetryBtn) {
+        els.guestReconnectRetryBtn.addEventListener("click", () => {
+            triggerGuestAutoRejoin("manual-banner-retry");
+        });
+    }
+    if (els.guestReconnectFallbackBtn) {
+        els.guestReconnectFallbackBtn.addEventListener("click", () => {
+            openGuestManualFallbackReconnect();
+        });
+    }
 }
 
 function createVoteDeps() {
@@ -296,6 +309,7 @@ function commitDisplayNameChange() {
         if (!result.applied) {
             restoreDisplayNameField();
             showDisplayNameNotice(result.reason || DISPLAY_NAME_TAKEN_REASON, "error");
+            flagDisplayNameInputError();
             return;
         }
         return;
@@ -596,6 +610,7 @@ function restoreHostSnapshot(snapshot) {
     state.hostPeers.clear();
     state.hostResponseCodeRaw = "";
     state.hostRoomPin = snapshot.hostRoomPin || "";
+    clearHostRestoreStatus();
     state.hostApprovedGuestIds = Array.isArray(snapshot.hostApprovedGuestIds)
         ? snapshot.hostApprovedGuestIds.slice()
         : [];
@@ -625,18 +640,10 @@ function restoreHostSnapshot(snapshot) {
     if (snapshot.currentView === "table") {
         showView("table");
         renderTable();
-        showNotice(
-            els.tableNotice,
-            "Session restored. Waiting for guests to auto-rejoin. Manual code exchange remains available.",
-            "info"
-        );
+        beginHostRestoreStatus();
     } else {
         showView("hostLobby");
-        showNotice(
-            els.hostLobbyNotice,
-            "Session restored. Guests can auto-rejoin; manual code exchange remains available.",
-            "info"
-        );
+        beginHostRestoreStatus();
     }
     saveSessionSnapshot();
 }
@@ -691,6 +698,23 @@ function restoreGuestSnapshot(snapshot) {
     saveSessionSnapshot();
 }
 
+function openGuestManualFallbackReconnect() {
+    stopGuestAutoRejoin();
+    showView("guestConnect");
+    setGuestStep(1);
+    renderConnectionStrategySections();
+    if (els.guestManualFallbackDetails) {
+        els.guestManualFallbackDetails.open = true;
+    }
+    showNotice(
+        els.guestConnectNotice,
+        "Manual fallback ready. Share a fresh join code with host to reconnect.",
+        "info"
+    );
+    void onRegenerateGuestOffer();
+    saveSessionSnapshot();
+}
+
 function isGuestConnected() {
     return canGuestSendToHost();
 }
@@ -706,4 +730,3 @@ export function storeDisplayName(name) {
 export function loadStoredDisplayName() {
     return loadPersistedDisplayName();
 }
-

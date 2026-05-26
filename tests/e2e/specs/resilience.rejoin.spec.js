@@ -429,7 +429,11 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
 
             await new Promise((resolve) => setTimeout(resolve, 250));
             return {
-                notice: String(els.tableNotice.textContent || ""),
+                bannerHidden: !!els.guestReconnectBanner && els.guestReconnectBanner.hidden,
+                bannerTitle: String(
+                    els.guestReconnectBannerTitle ? els.guestReconnectBannerTitle.textContent || "" : ""
+                ),
+                bannerHasError: !!els.guestReconnectBanner && els.guestReconnectBanner.classList.contains("error"),
                 status: String(els.connectionStatusText.textContent || "")
             };
         } finally {
@@ -439,7 +443,9 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
         }
     });
 
-    expect(result.notice).toContain("Could not reconnect automatically");
+    expect(result.bannerHidden).toBe(false);
+    expect(result.bannerTitle).toContain("Could not reconnect automatically");
+    expect(result.bannerHasError).toBe(true);
     expect(result.status).not.toContain("Reconnecting to host...");
 });
 

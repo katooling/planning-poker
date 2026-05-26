@@ -9,6 +9,7 @@ import { evaluateDisplayNameChange } from "./display-name-collision.js";
 import { ROUND_TITLE_MAX_LENGTH, sanitizeHostName } from "./host-shared.js";
 import { sendJson } from "./messaging.js";
 import { EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
+import { clearHostRestoreStatus } from "./host-restore-status.js";
 
 export function applyHostDisplayNameRename(displayName) {
     if (state.role !== "host" || !state.session) {
@@ -50,6 +51,7 @@ export function startHostSession(displayName) {
     state.hostRoomPin = "";
     state.hostPendingRejoinRequests = [];
     state.hostApprovedGuestIds = [];
+    clearHostRestoreStatus();
     setSignalCodeDisplay(
         els.hostResponseCode,
         els.hostResponseCodeMeta,

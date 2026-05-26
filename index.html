@@ -83,10 +83,6 @@
                         </div>
 
                         <div id="hostRoomAccessPanel" class="panel stack">
-                            <div id="hostPendingRejoinBanner" data-testid="banner-pending-rejoin" class="pending-rejoin-banner" hidden>
-                                <div id="hostPendingRejoinBannerTitle" class="pending-rejoin-banner-title"></div>
-                                <div id="hostPendingRejoinList" class="pending-rejoin-banner-list stack"></div>
-                            </div>
                             <div id="hostLobbyNotice" class="notice info"></div>
                             <div>
                                 <div class="panel-heading">Room Access</div>
@@ -102,6 +98,10 @@
                                 <label class="field-label" for="hostRoomPinInput">Room PIN (optional)</label>
                                 <input id="hostRoomPinInput" type="text" maxlength="20" placeholder="Optional PIN for guests">
                                 <img id="hostRoomQrImage" class="room-qr-image" alt="Join room QR code">
+                            </div>
+                            <div id="hostPendingRejoinBanner" data-testid="banner-pending-rejoin" class="pending-rejoin-banner" hidden>
+                                <div id="hostPendingRejoinBannerTitle" class="pending-rejoin-banner-title"></div>
+                                <div id="hostPendingRejoinList" class="pending-rejoin-banner-list stack"></div>
                             </div>
                         </div>
 
@@ -128,9 +128,12 @@
                         </details>
                     </div>
 
-                    <div class="row-between">
-                        <button id="hostStartGameBtn" data-testid="btn-host-start-game" class="btn btn-primary" disabled>Start Game</button>
-                        <button id="hostBackHomeBtn" data-testid="btn-host-back-home" class="btn btn-secondary">Back</button>
+                    <div class="stack">
+                        <div class="row-between">
+                            <button id="hostStartGameBtn" data-testid="btn-host-start-game" class="btn btn-primary" disabled>Start Game</button>
+                            <button id="hostBackHomeBtn" data-testid="btn-host-back-home" class="btn btn-secondary">Back</button>
+                        </div>
+                        <div id="hostStartGameHint" data-testid="hint-host-start-game" class="subtle host-start-game-hint" hidden></div>
                     </div>
                 </div>
             </section>
@@ -208,11 +211,6 @@
                         </div>
                     </div>
 
-                    <div id="tablePendingRejoinBanner" data-testid="banner-table-pending-rejoin" class="pending-rejoin-banner pending-rejoin-banner-attention" hidden>
-                        <div id="tablePendingRejoinBannerTitle" class="pending-rejoin-banner-title"></div>
-                        <div id="tablePendingRejoinList" class="pending-rejoin-banner-list stack"></div>
-                    </div>
-
                     <div id="statsBar" class="stats-bar">
                         <div class="stat-box"><div class="stat-key">Average</div><div id="statAverage" class="stat-value">--</div></div>
                         <div class="stat-box"><div class="stat-key">Median</div><div id="statMedian" class="stat-value">--</div></div>
@@ -237,6 +235,24 @@
                                 <button id="hostResetBtn" data-testid="btn-host-reset" class="btn btn-secondary">New Round</button>
                             </div>
                         </div>
+                    </div>
+
+                    <div id="guestReconnectBanner" data-testid="banner-guest-reconnect" class="reconnect-banner" hidden>
+                        <div class="reconnect-banner-row">
+                            <div class="reconnect-banner-text">
+                                <div id="guestReconnectBannerTitle" class="reconnect-banner-title"></div>
+                                <div id="guestReconnectBannerBody" class="reconnect-banner-body"></div>
+                            </div>
+                            <div class="row reconnect-banner-actions">
+                                <button id="guestReconnectRetryBtn" data-testid="btn-guest-reconnect-retry" type="button" class="btn btn-primary btn-small" hidden>Retry now</button>
+                                <button id="guestReconnectFallbackBtn" data-testid="btn-guest-reconnect-fallback" type="button" class="btn btn-link btn-small" hidden>Use manual fallback</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="tablePendingRejoinBanner" data-testid="banner-table-pending-rejoin" class="pending-rejoin-banner pending-rejoin-banner-attention" hidden>
+                        <div id="tablePendingRejoinBannerTitle" class="pending-rejoin-banner-title"></div>
+                        <div id="tablePendingRejoinList" class="pending-rejoin-banner-list stack"></div>
                     </div>
 
                     <div id="tableNotice" data-testid="notice-table" class="notice info"></div>
