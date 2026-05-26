@@ -411,11 +411,6 @@ function queuePendingRejoin(guestId, guestName) {
         }
     }
     if (state.currentView === "hostLobby") {
-        showNotice(
-            els.hostLobbyNotice,
-            "Rejoin request from " + guestName + ". Approve or reject.",
-            "info"
-        );
         renderHostLobby();
     } else if (state.currentView === "table") {
         renderTable();

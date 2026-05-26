@@ -83,6 +83,10 @@
                         </div>
 
                         <div id="hostRoomAccessPanel" class="panel stack">
+                            <div id="hostPendingRejoinBanner" data-testid="banner-pending-rejoin" class="pending-rejoin-banner pending-rejoin-banner-attention" hidden>
+                                <div id="hostPendingRejoinBannerTitle" class="pending-rejoin-banner-title"></div>
+                                <div id="hostPendingRejoinList" class="pending-rejoin-banner-list stack"></div>
+                            </div>
                             <div id="hostLobbyNotice" class="notice info"></div>
                             <div>
                                 <div class="panel-heading">Room Access</div>
@@ -98,10 +102,6 @@
                                 <label class="field-label" for="hostRoomPinInput">Room PIN (optional)</label>
                                 <input id="hostRoomPinInput" type="text" maxlength="20" placeholder="Optional PIN for guests">
                                 <img id="hostRoomQrImage" class="room-qr-image" alt="Join room QR code">
-                            </div>
-                            <div id="hostPendingRejoinBanner" data-testid="banner-pending-rejoin" class="pending-rejoin-banner" hidden>
-                                <div id="hostPendingRejoinBannerTitle" class="pending-rejoin-banner-title"></div>
-                                <div id="hostPendingRejoinList" class="pending-rejoin-banner-list stack"></div>
                             </div>
                         </div>
 

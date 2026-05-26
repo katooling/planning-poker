@@ -41,7 +41,7 @@ test("host pending banner lists guest after relay rejoin is queued", async ({ pa
     await expect.poll(async () => page.evaluate(() => {
         const roomAccess = document.getElementById("hostRoomAccessPanel");
         const banner = document.getElementById("hostPendingRejoinBanner");
-        return roomAccess && banner ? roomAccess.lastElementChild === banner : false;
+        return roomAccess && banner ? roomAccess.firstElementChild === banner : false;
     })).toBe(true);
 });
 
