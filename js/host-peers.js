@@ -23,6 +23,10 @@ let hostRecoveryRetryTimer = null;
 let hostRecoveryRetryAttempts = 0;
 let lastClosedRecoveryRelay = null;
 
+function getHostRecoveryNoticeTarget() {
+    return state.currentView === "table" ? els.tableNotice : els.hostLobbyNotice;
+}
+
 export function startHostRecoveryRelayListener() {
     if (state.role !== "host" || !state.session) return;
     const roomId = state.roomId || state.localId;
@@ -74,7 +78,7 @@ export function approvePendingRejoin(guestId) {
     const relayChannel = state.hostRecoveryRelay;
     if (!relayChannel || relayChannel.readyState !== "open") {
         showNotice(
-            els.hostLobbyNotice,
+            getHostRecoveryNoticeTarget(),
             "Recovery relay is not ready. Ask guest to retry shortly.",
             "warn"
         );

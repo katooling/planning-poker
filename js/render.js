@@ -9,6 +9,20 @@ export function setVoteSelectHandler(handler) {
     voteSelectHandler = handler;
 }
 
+function renderPendingRejoinRows(pending) {
+    return pending.map((request) => {
+        const safeId = escapeHtml(request.id);
+        const safeName = escapeHtml(request.name || "Guest");
+        return `<div class="row-between pending-rejoin-row">
+                <div class="pending-rejoin-guest">${safeName}</div>
+                <div class="row">
+                    <button class="btn btn-primary btn-small" data-approve-rejoin="${safeId}">Approve</button>
+                    <button class="btn btn-secondary btn-small" data-reject-rejoin="${safeId}">Reject</button>
+                </div>
+            </div>`;
+    }).join("");
+}
+
 export function renderHostLobby() {
     if (!state.session) return;
     renderConnectionStrategySections();
@@ -50,19 +64,7 @@ export function renderHostLobby() {
                 ? (pending.length === 1 ? "Guest waiting to rejoin" : "Guests waiting to rejoin")
                 : "";
         }
-        els.hostPendingRejoinList.innerHTML = hasPending
-            ? pending.map((request) => {
-                const safeId = escapeHtml(request.id);
-                const safeName = escapeHtml(request.name || "Guest");
-                return `<div class="row-between pending-rejoin-row">
-                <div class="pending-rejoin-guest">${safeName}</div>
-                <div class="row">
-                    <button class="btn btn-primary btn-small" data-approve-rejoin="${safeId}">Approve</button>
-                    <button class="btn btn-secondary btn-small" data-reject-rejoin="${safeId}">Reject</button>
-                </div>
-            </div>`;
-            }).join("")
-            : "";
+        els.hostPendingRejoinList.innerHTML = hasPending ? renderPendingRejoinRows(pending) : "";
     }
 
     if (els.hostRoomCode) {
@@ -104,19 +106,7 @@ function renderTablePendingRejoin(isHost) {
             : "";
     }
     if (list) {
-        list.innerHTML = hasPending
-            ? pending.map((request) => {
-                const safeId = escapeHtml(request.id);
-                const safeName = escapeHtml(request.name || "Guest");
-                return `<div class="row-between pending-rejoin-row">
-                <div class="pending-rejoin-guest">${safeName}</div>
-                <div class="row">
-                    <button class="btn btn-primary btn-small" data-approve-rejoin="${safeId}">Approve</button>
-                    <button class="btn btn-secondary btn-small" data-reject-rejoin="${safeId}">Reject</button>
-                </div>
-            </div>`;
-            }).join("")
-            : "";
+        list.innerHTML = hasPending ? renderPendingRejoinRows(pending) : "";
     }
     if (badge) {
         if (hasPending) {
