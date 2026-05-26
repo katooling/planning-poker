@@ -201,8 +201,16 @@
                         </div>
                         <div class="row">
                             <span id="tableRoleChip" class="chip">Guest</span>
-                            <button id="leaveSessionBtn" data-testid="btn-leave-session" class="btn btn-danger">Leave</button>
+                            <button id="leaveSessionBtn" data-testid="btn-leave-session" class="btn btn-danger">
+                                <span id="leaveSessionBtnLabel">Leave</span>
+                                <span id="leaveSessionPendingBadge" class="pending-rejoin-badge" hidden></span>
+                            </button>
                         </div>
+                    </div>
+
+                    <div id="tablePendingRejoinBanner" data-testid="banner-table-pending-rejoin" class="pending-rejoin-banner pending-rejoin-banner-attention" hidden>
+                        <div id="tablePendingRejoinBannerTitle" class="pending-rejoin-banner-title"></div>
+                        <div id="tablePendingRejoinList" class="pending-rejoin-banner-list stack"></div>
                     </div>
 
                     <div id="statsBar" class="stats-bar">

@@ -154,8 +154,9 @@ function wireHostEvents() {
             onKickGuest(guestId);
         });
     }
-    if (els.hostPendingRejoinList) {
-        els.hostPendingRejoinList.addEventListener("click", (event) => {
+    const wirePendingRejoinList = (listEl) => {
+        if (!listEl) return;
+        listEl.addEventListener("click", (event) => {
             const target = event.target;
             if (!(target instanceof HTMLElement)) return;
             const approveId = target.getAttribute("data-approve-rejoin");
@@ -168,7 +169,9 @@ function wireHostEvents() {
                 rejectPendingRejoin(rejectId);
             }
         });
-    }
+    };
+    wirePendingRejoinList(els.hostPendingRejoinList);
+    wirePendingRejoinList(els.tablePendingRejoinList);
     els.copyHostResponseCodeBtn.addEventListener("click", async () => {
         await copyTextWithFeedback(state.hostResponseCodeRaw, els.copyHostResponseCodeBtn, "Copied");
     });

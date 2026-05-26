@@ -82,6 +82,53 @@ export function renderHostLobby() {
     }
 }
 
+function renderTablePendingRejoin(isHost) {
+    const banner = els.tablePendingRejoinBanner;
+    const list = els.tablePendingRejoinList;
+    const title = els.tablePendingRejoinBannerTitle;
+    const badge = els.leaveSessionPendingBadge;
+    const onTable = state.currentView === "table";
+    const pending = isHost && onTable && Array.isArray(state.hostPendingRejoinRequests)
+        ? state.hostPendingRejoinRequests
+        : [];
+    const hasPending = pending.length > 0;
+
+    if (banner) {
+        banner.hidden = !hasPending;
+    }
+    if (title) {
+        title.textContent = hasPending
+            ? (pending.length === 1
+                ? "Guest waiting to rejoin"
+                : pending.length + " guests waiting to rejoin")
+            : "";
+    }
+    if (list) {
+        list.innerHTML = hasPending
+            ? pending.map((request) => {
+                const safeId = escapeHtml(request.id);
+                const safeName = escapeHtml(request.name || "Guest");
+                return `<div class="row-between pending-rejoin-row">
+                <div class="pending-rejoin-guest">${safeName}</div>
+                <div class="row">
+                    <button class="btn btn-primary btn-small" data-approve-rejoin="${safeId}">Approve</button>
+                    <button class="btn btn-secondary btn-small" data-reject-rejoin="${safeId}">Reject</button>
+                </div>
+            </div>`;
+            }).join("")
+            : "";
+    }
+    if (badge) {
+        if (hasPending) {
+            badge.textContent = String(pending.length);
+            badge.hidden = false;
+        } else {
+            badge.textContent = "";
+            badge.hidden = true;
+        }
+    }
+}
+
 const JOIN_LINK_STATUS_COPY = {
     connecting: {
         title: "Connecting to room…",
@@ -191,7 +238,13 @@ export function renderTable() {
 
     els.tableRoleChip.textContent = isHost ? "Host" : "Guest";
     const guestCanLeave = !!(guestConnection && guestConnection.canSend);
-    els.leaveSessionBtn.textContent = isHost ? "Back to Lobby" : (guestCanLeave ? "Leave" : "Reconnect");
+    const leaveLabel = isHost ? "Back to Lobby" : (guestCanLeave ? "Leave" : "Reconnect");
+    if (els.leaveSessionBtnLabel) {
+        els.leaveSessionBtnLabel.textContent = leaveLabel;
+    } else {
+        els.leaveSessionBtn.textContent = leaveLabel;
+    }
+    renderTablePendingRejoin(isHost);
     els.hostRevealBtn.style.display = isHost ? "inline-block" : "none";
     els.hostResetBtn.style.display = isHost ? "inline-block" : "none";
     els.hostRevealBtn.textContent = isRevealed ? "Conceal" : "Reveal";
