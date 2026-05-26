@@ -1,11 +1,45 @@
 import { log } from "./log.js";
 
-const MQTT_BROKER_URL = "wss://broker.hivemq.com:8884/mqtt";
+const DEFAULT_MQTT_BROKERS = [
+    { url: "wss://demo.tbmq.io/mqtt", username: "demo" },
+    { url: "wss://iot.coreflux.cloud/mqtt" },
+    { url: "wss://broker.mqtt-dashboard.com:8884/mqtt" },
+    { url: "wss://broker.hivemq.com:8884/mqtt" }
+];
 const MQTT_PROTOCOL_LEVEL = 4;
 const MQTT_KEEP_ALIVE_SECONDS = 30;
 const PING_INTERVAL_MS = 20_000;
 const CONNECT_TIMEOUT_MS = 10_000;
 const MQTT_INBOUND_STALE_MS = 45_000;
+
+function normalizeBrokerConfig(value) {
+    if (typeof value === "string") {
+        return { url: value };
+    }
+    if (!value || typeof value !== "object") {
+        return null;
+    }
+    return {
+        url: value.url,
+        username: value.username,
+        password: value.password
+    };
+}
+
+function getMqttBrokerConfigs() {
+    const override = typeof window !== "undefined" ? window.__PP_TEST_MQTT_BROKER_URLS : null;
+    const rawConfigs = Array.isArray(override) ? override : DEFAULT_MQTT_BROKERS;
+    const configs = rawConfigs
+        .map(normalizeBrokerConfig)
+        .filter(Boolean)
+        .map((config) => ({
+            url: String(config.url || "").trim(),
+            username: String(config.username || "").trim(),
+            password: config.password == null ? "" : String(config.password)
+        }))
+        .filter((config) => /^wss:\/\/[^/]+\/.+/.test(config.url));
+    return configs.length ? configs : DEFAULT_MQTT_BROKERS;
+}
 
 function getMqttInboundStaleMs() {
     const testMs = Number(window.__PP_TEST_MQTT_INBOUND_STALE_MS);
@@ -82,12 +116,33 @@ function decodeRemainingLength(bytes, offset) {
     return { value, bytesUsed: index - offset };
 }
 
-function buildConnectPacket(clientId) {
+function buildConnectPacket(clientId, auth = {}) {
+    const username = String(auth.username || "").trim();
+    const password = auth.password == null ? "" : String(auth.password);
+    let connectFlags = 0x02;
+    const payloadParts = [encodeString(clientId)];
+    if (password) {
+        connectFlags |= 0x40;
+    }
+    if (username) {
+        connectFlags |= 0x80;
+    }
     const variableHeader = concatBytes([
         encodeString("MQTT"),
-        new Uint8Array([MQTT_PROTOCOL_LEVEL, 0x02, (MQTT_KEEP_ALIVE_SECONDS >> 8) & 0xff, MQTT_KEEP_ALIVE_SECONDS & 0xff])
+        new Uint8Array([
+            MQTT_PROTOCOL_LEVEL,
+            connectFlags,
+            (MQTT_KEEP_ALIVE_SECONDS >> 8) & 0xff,
+            MQTT_KEEP_ALIVE_SECONDS & 0xff
+        ])
     ]);
-    const payload = encodeString(clientId);
+    if (username) {
+        payloadParts.push(encodeString(username));
+    }
+    if (password) {
+        payloadParts.push(encodeString(password));
+    }
+    const payload = concatBytes(payloadParts);
     return buildPacket(0x10, concatBytes([variableHeader, payload]));
 }
 
@@ -123,6 +178,8 @@ class SimpleMqttClient {
         this.onClose = onClose;
         this.onFailure = onFailure;
         this.ws = null;
+        this.brokerConfigs = getMqttBrokerConfigs();
+        this.brokerIndex = 0;
         this.packetId = 1;
         this.buffer = new Uint8Array(0);
         this.isConnected = false;
@@ -131,6 +188,7 @@ class SimpleMqttClient {
         this.connectTimer = null;
         this.failureNotified = false;
         this.lastInboundAt = 0;
+        this.isClosing = false;
     }
 
     isInboundStale() {
@@ -147,18 +205,22 @@ class SimpleMqttClient {
 
     connect() {
         if (this.ws) return;
+        this.isClosing = false;
         if (typeof window !== "undefined") {
             window.__PP_MQTT_CONNECT_COUNT = (window.__PP_MQTT_CONNECT_COUNT || 0) + 1;
         }
+        const broker = this.getCurrentBroker();
+        const brokerUrl = broker.url;
         log.info("mqtt", "MQTT relay connect attempt", {
             clientId: this.clientId,
-            subscribeTopic: this.subscribeTopic
+            subscribeTopic: this.subscribeTopic,
+            brokerUrl
         });
-        const ws = new WebSocket(MQTT_BROKER_URL);
+        const ws = new WebSocket(brokerUrl);
         ws.binaryType = "arraybuffer";
         ws.onopen = () => {
             log.info("mqtt", "MQTT websocket open", { clientId: this.clientId });
-            this.sendRaw(buildConnectPacket(this.clientId));
+            this.sendRaw(buildConnectPacket(this.clientId, broker));
         };
         ws.onmessage = (event) => {
             this.lastInboundAt = Date.now();
@@ -167,13 +229,23 @@ class SimpleMqttClient {
             this.processFrames();
         };
         ws.onerror = () => {
-            log.warn("mqtt", "MQTT socket error", { clientId: this.clientId, subscribeTopic: this.subscribeTopic });
-            this.notifyFailure("socket_error");
+            log.warn("mqtt", "MQTT socket error", { clientId: this.clientId, subscribeTopic: this.subscribeTopic, brokerUrl });
+            if (!this.isSubscribed) {
+                this.failCurrentBroker("socket_error", { brokerUrl });
+                return;
+            }
+            this.notifyFailure("socket_error", { brokerUrl });
         };
         ws.onclose = () => {
             this.clearConnectTimer();
+            if (this.isClosing) {
+                this.teardown();
+                if (typeof this.onClose === "function") this.onClose();
+                return;
+            }
             if (!this.isSubscribed) {
-                this.notifyFailure("closed_before_open");
+                this.failCurrentBroker("closed_before_open", { brokerUrl });
+                return;
             }
             this.teardown();
             if (typeof this.onClose === "function") this.onClose();
@@ -183,6 +255,7 @@ class SimpleMqttClient {
     }
 
     close() {
+        this.isClosing = true;
         this.clearConnectTimer();
         if (!this.ws) return;
         try {
@@ -211,6 +284,55 @@ class SimpleMqttClient {
         this.ws.send(bytes);
     }
 
+    getCurrentBrokerUrl() {
+        return this.getCurrentBroker().url;
+    }
+
+    getCurrentBroker() {
+        return this.brokerConfigs[this.brokerIndex] || this.brokerConfigs[0];
+    }
+
+    failCurrentBroker(reason, detail = {}) {
+        if (this.failureNotified) return;
+        const failedBrokerUrl = detail.brokerUrl || this.getCurrentBrokerUrl();
+        this.clearConnectTimer();
+
+        const ws = this.ws;
+        if (ws) {
+            ws.onopen = null;
+            ws.onmessage = null;
+            ws.onerror = null;
+            ws.onclose = null;
+            try {
+                ws.close();
+            } catch (_error) {
+                // Ignore socket close failures while failing over.
+            }
+        }
+        this.stopPingLoop();
+        this.isConnected = false;
+        this.isSubscribed = false;
+        this.ws = null;
+        this.buffer = new Uint8Array(0);
+
+        if (this.brokerIndex + 1 < this.brokerConfigs.length) {
+            this.brokerIndex += 1;
+            log.warn("mqtt", "MQTT relay broker failed; trying next broker", {
+                clientId: this.clientId,
+                reason,
+                failedBrokerUrl,
+                nextBrokerUrl: this.getCurrentBrokerUrl()
+            });
+            this.connect();
+            return;
+        }
+
+        this.notifyFailure(reason, { ...detail, brokerUrl: failedBrokerUrl });
+        this.isClosing = true;
+        this.teardown();
+        if (typeof this.onClose === "function") this.onClose();
+    }
+
     processFrames() {
         let offset = 0;
         while (offset < this.buffer.length) {
@@ -234,8 +356,7 @@ class SimpleMqttClient {
             this.isConnected = body.length >= 2 && body[1] === 0;
             if (!this.isConnected) {
                 log.warn("mqtt", "MQTT CONNACK refused", { clientId: this.clientId, code: body[1] });
-                this.notifyFailure("connack_refused", { code: body[1] });
-                this.close();
+                this.failCurrentBroker("connack_refused", { code: body[1], brokerUrl: this.getCurrentBrokerUrl() });
                 return;
             }
             const packetId = this.nextPacketId();
@@ -283,15 +404,16 @@ class SimpleMqttClient {
 
     startConnectTimer() {
         this.clearConnectTimer();
+        const timeoutMs = getMqttConnectTimeoutMs();
         this.connectTimer = setTimeout(() => {
             if (this.isSubscribed) return;
             log.warn("mqtt", "MQTT relay connect timeout", {
                 clientId: this.clientId,
-                timeoutMs: CONNECT_TIMEOUT_MS
+                timeoutMs,
+                brokerUrl: this.getCurrentBrokerUrl()
             });
-            this.notifyFailure("timeout", { timeoutMs: CONNECT_TIMEOUT_MS });
-            this.close();
-        }, getMqttConnectTimeoutMs());
+            this.failCurrentBroker("timeout", { timeoutMs, brokerUrl: this.getCurrentBrokerUrl() });
+        }, timeoutMs);
     }
 
     clearConnectTimer() {

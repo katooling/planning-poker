@@ -127,6 +127,8 @@ test("guest relay timeout shows terminal error notice", async ({ page }) => {
     await openHome(page);
     const noticeText = await page.evaluate(async () => {
         const originalWebSocket = window.WebSocket;
+        const originalBrokerUrls = window.__PP_TEST_MQTT_BROKER_URLS;
+        const originalConnectTimeout = window.__PP_TEST_MQTT_CONNECT_TIMEOUT_MS;
         const OPEN = 1;
 
         class TimeoutWebSocket {
@@ -154,6 +156,8 @@ test("guest relay timeout shows terminal error notice", async ({ page }) => {
         }
 
         window.WebSocket = TimeoutWebSocket;
+        window.__PP_TEST_MQTT_BROKER_URLS = ["wss://timeout-broker.example/mqtt"];
+        window.__PP_TEST_MQTT_CONNECT_TIMEOUT_MS = 25;
         try {
             const { state } = await import("/js/state.js");
             const { setupGuestPeerHandlers } = await import("/js/guest.js");
@@ -197,6 +201,8 @@ test("guest relay timeout shows terminal error notice", async ({ page }) => {
             return String(els.guestConnectNotice.textContent || "");
         } finally {
             window.WebSocket = originalWebSocket;
+            window.__PP_TEST_MQTT_BROKER_URLS = originalBrokerUrls;
+            window.__PP_TEST_MQTT_CONNECT_TIMEOUT_MS = originalConnectTimeout;
         }
     });
 
@@ -296,6 +302,136 @@ test("mqtt relay channel works with mocked websocket transport", async ({ page }
 
     expect(result.sawConnectPacket).toBe(true);
     expect(result.sawSubscribePacket).toBe(true);
+});
+
+test("mqtt relay tries the next configured broker before failing", async ({ page }) => {
+    await openHome(page);
+
+    const result = await page.evaluate(async ({ fnSources }) => {
+        const makeFn = (source) => eval(`(${source})`);
+        const encodeRemainingLength = makeFn(fnSources.encodeRemainingLength);
+        const packet = makeFn(fnSources.packet);
+        const buildConnack = makeFn(fnSources.buildConnack);
+        const buildSuback = makeFn(fnSources.buildSuback);
+        void encodeRemainingLength;
+        void packet;
+        const originalWebSocket = window.WebSocket;
+        const originalBrokerUrls = window.__PP_TEST_MQTT_BROKER_URLS;
+        const OPEN = 1;
+        const createdUrls = [];
+        const sentPacketTypes = [];
+        let secondBrokerConnectFlags = null;
+        let secondBrokerConnectPayload = "";
+
+        class FailoverWebSocket {
+            static OPEN = OPEN;
+
+            constructor(url) {
+                this.url = url;
+                this.binaryType = "arraybuffer";
+                this.readyState = 0;
+                this.onopen = null;
+                this.onmessage = null;
+                this.onclose = null;
+                this.onerror = null;
+                createdUrls.push(url);
+                setTimeout(() => {
+                    if (url.includes("first-broker")) {
+                        this.readyState = 3;
+                        if (typeof this.onerror === "function") this.onerror(new Event("error"));
+                        if (typeof this.onclose === "function") this.onclose();
+                        return;
+                    }
+                    this.readyState = OPEN;
+                    if (typeof this.onopen === "function") this.onopen();
+                }, 0);
+            }
+
+            send(data) {
+                const bytes = new Uint8Array(data);
+                const packetType = bytes[0] >> 4;
+                sentPacketTypes.push(packetType);
+                if (packetType === 1 && this.url.includes("second-broker")) {
+                    let offset = 1;
+                    while (offset < bytes.length) {
+                        const byte = bytes[offset++];
+                        if ((byte & 0x80) === 0) break;
+                    }
+                    const body = bytes.subarray(offset);
+                    secondBrokerConnectFlags = body[7];
+                    secondBrokerConnectPayload = new TextDecoder().decode(body);
+                }
+                if (packetType === 1 && typeof this.onmessage === "function") {
+                    setTimeout(() => {
+                        if (typeof this.onmessage === "function") this.onmessage({ data: buildConnack().buffer });
+                    }, 0);
+                    return;
+                }
+                if (packetType === 8 && typeof this.onmessage === "function") {
+                    const packetIdMsb = bytes[2] || 0x00;
+                    const packetIdLsb = bytes[3] || 0x01;
+                    setTimeout(() => {
+                        if (typeof this.onmessage === "function") {
+                            this.onmessage({ data: buildSuback(packetIdMsb, packetIdLsb).buffer });
+                        }
+                    }, 0);
+                }
+            }
+
+            close() {
+                this.readyState = 3;
+            }
+        }
+
+        window.WebSocket = FailoverWebSocket;
+        window.__PP_TEST_MQTT_BROKER_URLS = [
+            "wss://first-broker.example/mqtt",
+            { url: "wss://second-broker.example/mqtt", username: "demo" }
+        ];
+
+        try {
+            const { createMqttRelayChannel } = await import("/js/mqtt-relay.js");
+            const channel = createMqttRelayChannel("guest", "room-failover", "guest-failover");
+
+            await new Promise((resolve, reject) => {
+                const started = Date.now();
+                const timer = setInterval(() => {
+                    if (channel.readyState === "open") {
+                        clearInterval(timer);
+                        resolve();
+                        return;
+                    }
+                    if (Date.now() - started > 5000) {
+                        clearInterval(timer);
+                        reject(new Error("MQTT failover broker did not open in time."));
+                    }
+                }, 20);
+            });
+
+            channel.close();
+            return {
+                createdUrls,
+                sawConnectPacket: sentPacketTypes.includes(1),
+                sawSubscribePacket: sentPacketTypes.includes(8),
+                secondBrokerConnectFlags,
+                secondBrokerConnectPayload,
+                readyState: channel.readyState
+            };
+        } finally {
+            window.WebSocket = originalWebSocket;
+            window.__PP_TEST_MQTT_BROKER_URLS = originalBrokerUrls;
+        }
+    }, { fnSources: mockFunctionSources() });
+
+    expect(result.createdUrls).toEqual([
+        "wss://first-broker.example/mqtt",
+        "wss://second-broker.example/mqtt"
+    ]);
+    expect(result.sawConnectPacket).toBe(true);
+    expect(result.sawSubscribePacket).toBe(true);
+    expect(result.secondBrokerConnectFlags & 0x80).toBe(0x80);
+    expect(result.secondBrokerConnectPayload).toContain("demo");
+    expect(result.readyState).toBe("open");
 });
 
 test("mqtt guest inbound stall triggers recovery reconnect", async ({ page }) => {

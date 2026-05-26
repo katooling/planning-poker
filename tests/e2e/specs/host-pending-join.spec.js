@@ -55,7 +55,7 @@ test("host pending banner appears when guest requests mqtt join approval", async
     await createHost(host, "HostPendingBanner");
 
     const relayOpen = await isHostRecoveryRelayOpen(host);
-    test.skip(!relayOpen, "Host MQTT recovery relay did not open in this environment.");
+    expect(relayOpen, "Host MQTT recovery relay must open before pending join can be requested.").toBe(true);
 
     const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
     await requestMqttGuestJoin(guest, { roomCode, guestName: "GuestPendingBanner" });

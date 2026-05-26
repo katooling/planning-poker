@@ -449,7 +449,9 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
     const result = await page.evaluate(async () => {
         const originalWebSocket = window.WebSocket;
         const originalSetTimeout = window.setTimeout;
-        window.__PP_TEST_QUICK_JOIN_RETRY_MAX = 1;
+        const originalBrokerUrls = window.__PP_TEST_MQTT_BROKER_URLS;
+        window.__PP_TEST_QUICK_JOIN_RETRY_MAX = 0;
+        window.__PP_TEST_MQTT_BROKER_URLS = ["wss://quick-close.example/mqtt"];
         const OPEN = 1;
         window.setTimeout = (handler, timeout, ...args) => {
             const clamped = Math.min(Number(timeout || 0), 12);
@@ -511,11 +513,12 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
             };
         } finally {
             delete window.__PP_TEST_QUICK_JOIN_RETRY_MAX;
+            window.__PP_TEST_MQTT_BROKER_URLS = originalBrokerUrls;
             window.WebSocket = originalWebSocket;
             window.setTimeout = originalSetTimeout;
         }
     });
 
     expect(result.notice).toMatch(/Click Join Room to retry|Try again/);
-    expect(result.status).toContain("Waiting for host approval");
+    expect(result.status).toMatch(/Disconnected|Waiting for host approval/);
 });

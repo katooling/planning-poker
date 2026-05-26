@@ -20,7 +20,7 @@ Yes, for normal planning poker usage where data is not sensitive.
 ## Availability expectations
 
 - No guaranteed uptime, SLA, or permanent availability is assumed.
-- The public broker provider may throttle, change limits, or discontinue free access.
+- Public broker providers may throttle, change limits, require credentials, or discontinue free access.
 - Users may occasionally see connection failures or delays.
 
 ## How to use the app effectively
@@ -40,6 +40,7 @@ Yes, for normal planning poker usage where data is not sensitive.
 
 - Treat public relay as a convenience, not guaranteed infrastructure.
 - Keep broker endpoints configurable for future migration.
+- Keep at least one live quick-join test fail-fast on relay startup failure; mocked contract tests alone do not prove public relay availability.
 - Prefer graceful failure messaging over silent failure.
 
 ## Scope of this policy

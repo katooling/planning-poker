@@ -39,7 +39,8 @@ Use **Connection Settings** -> set mode to **Manual WebRTC Signaling**, then use
 
 ## Connection And Recovery Behavior
 
-- Default transport uses MQTT relay (`wss://broker.hivemq.com:8884/mqtt`).
+- Default transport uses an ordered MQTT relay list, starting with `wss://demo.tbmq.io/mqtt`.
+- If one public relay fails, the app tries the next configured relay before reporting failure.
 - Host keeps a relay recovery listener for reconnect and join requests.
 - Guest reconnect attempts happen automatically over relay with exponential backoff.
 - A sanitized session snapshot is saved in `sessionStorage` (up to ~12 hours) and can restore room/table context on refresh in the same tab.

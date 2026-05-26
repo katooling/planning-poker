@@ -943,11 +943,16 @@ async function attemptGuestDirectRelayJoin(reason) {
         },
         onClose: () => {
             if (attemptId !== guestQuickJoinAttemptId) return;
-            state.guestChannel = null;
             if (!guestAwaitingRejoinAck) {
+                if (state.currentView === "table" && state.guestAutoRejoinEnabled) {
+                    onHostChannelClose(relayChannel);
+                    return;
+                }
+                state.guestChannel = null;
                 updateConnectionStatus(false, "Disconnected");
                 return;
             }
+            state.guestChannel = null;
             const retryAttempt = scheduleGuestJoinRetry("relay-close");
             const retryScheduled = Number.isFinite(retryAttempt);
             if (retryScheduled) {

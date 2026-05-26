@@ -115,7 +115,7 @@ test("mqtt quick join connects guest with room code and host approval", async ({
     await createHost(host, "HostQuickJoin");
 
     const relayOpen = await isHostRecoveryRelayOpen(host);
-    test.skip(!relayOpen, "Host MQTT recovery relay did not open in this environment.");
+    expect(relayOpen, "Host MQTT recovery relay must open for default quick join.").toBe(true);
 
     const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
     await requestMqttGuestJoin(guest, { roomCode, guestName: "GuestQuickJoin" });
