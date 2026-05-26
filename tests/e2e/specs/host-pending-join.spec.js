@@ -7,7 +7,8 @@ const {
     setConnectionPreferences,
     isHostRecoveryRelayOpen,
     requestMqttGuestJoin,
-    expectHostPendingGuest
+    expectHostPendingGuest,
+    withSessionPages
 } = require("../helpers");
 
 test("host pending banner lists guest after relay rejoin is queued", async ({ page }) => {
@@ -46,26 +47,24 @@ test("host pending banner lists guest after relay rejoin is queued", async ({ pa
 });
 
 test("host pending banner appears when guest requests mqtt join approval", async ({ browser }) => {
-    const context = await browser.newContext();
-    const host = await context.newPage();
-    const guest = await context.newPage();
+    await withSessionPages(browser, ["host", "guest"], async ({ host, guest }) => {
+        await openHome(host);
+        await openHome(guest);
+        await setConnectionPreferences(host, {
+            mode: "mqttQuickJoin",
+            hostRequireApprovalFirstJoin: true,
+            hostAutoApproveKnownRejoin: true
+        });
+        await setConnectionMode(guest, "mqttQuickJoin");
+        await createHost(host, "HostPendingBanner");
 
-    await openHome(host);
-    await openHome(guest);
-    await setConnectionPreferences(host, {
-        mode: "mqttQuickJoin",
-        hostRequireApprovalFirstJoin: true,
-        hostAutoApproveKnownRejoin: true
+        const relayOpen = await isHostRecoveryRelayOpen(host);
+        expect(relayOpen, "Host MQTT recovery relay must open before pending join can be requested.").toBe(true);
+
+        const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
+        await requestMqttGuestJoin(guest, { roomCode, guestName: "GuestPendingBanner" });
+        await expectHostPendingGuest(host, "GuestPendingBanner", { guestPage: guest });
     });
-    await setConnectionMode(guest, "mqttQuickJoin");
-    await createHost(host, "HostPendingBanner");
-
-    const relayOpen = await isHostRecoveryRelayOpen(host);
-    expect(relayOpen, "Host MQTT recovery relay must open before pending join can be requested.").toBe(true);
-
-    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
-    await requestMqttGuestJoin(guest, { roomCode, guestName: "GuestPendingBanner" });
-    await expectHostPendingGuest(host, "GuestPendingBanner", { guestPage: guest });
 });
 
 test("host can approve and reject pending rejoins from the table", async ({ page }) => {

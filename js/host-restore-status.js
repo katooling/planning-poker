@@ -1,5 +1,6 @@
 import { state } from "./state.js";
 import { els, showNotice } from "./ui.js";
+import { registerRuntimeCleanup } from "./runtime-cleanup.js";
 
 const DEFAULT_RESTORE_WAIT_MS = 12_000;
 const RESTORE_DONE_MS = 3_500;
@@ -133,3 +134,12 @@ export function clearHostRestoreStatus() {
     clearRestoreTimer();
     state.hostRestoreStatus = null;
 }
+
+export function getHostRestoreRuntimeDiagnosticsForTest() {
+    return {
+        restoreWaitTimer: !!restoreWaitTimer,
+        restoreStatusActive: !!(state.hostRestoreStatus && state.hostRestoreStatus.active)
+    };
+}
+
+registerRuntimeCleanup("host", clearHostRestoreStatus);

@@ -8,14 +8,18 @@ const {
     setConnectionModeForPages,
     setConnectionPreferences,
     startGameFromLobby,
+    setRuntimeOverrides,
+    withSessionPages,
     waitForGuestConnection
 } = require("../helpers");
 
 test("guest presence heartbeat sends immediate and periodic beats", async ({ page }) => {
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_PRESENCE_PING_INTERVAL_MS: 60
+    });
 
     const result = await page.evaluate(async () => {
-        window.__PP_TEST_PRESENCE_PING_INTERVAL_MS = 60;
         const sent = [];
         const { state } = await import("/js/state.js");
         const { onHostChannelOpen } = await import("/js/guest.js");
@@ -266,59 +270,59 @@ test("guest remote state persists across connection status changes", async ({ pa
 
 test("live mqtt guest survives simulated idle and syncs host reveal", async ({ browser }) => {
     test.setTimeout(120_000);
-    const context = await browser.newContext();
-    const host = await context.newPage();
-    const guest = await context.newPage();
+    await withSessionPages(browser, ["host", "guest"], async ({ host, guest }) => {
+        await openHome(host);
+        await openHome(guest);
+        await setConnectionPreferences(host, {
+            mode: "mqttQuickJoin",
+            hostRequireApprovalFirstJoin: true,
+            hostAutoApproveKnownRejoin: true
+        });
+        await setConnectionModeForPages([host, guest], "mqttQuickJoin");
+        await createHost(host, "HostIdle");
+        const guestConnection = await connectGuestToHost(host, guest, "GuestIdle");
+        test.skip(!guestConnection.connected, "MQTT guest channel did not open in this environment.");
 
-    await openHome(host);
-    await openHome(guest);
-    await setConnectionPreferences(host, {
-        mode: "mqttQuickJoin",
-        hostRequireApprovalFirstJoin: true,
-        hostAutoApproveKnownRejoin: true
+        await startGameFromLobby(host);
+        await expect(guest.locator("#tableView.active")).toBeVisible();
+        await host.locator('#votePalette .vote-card[data-vote="5"]').click();
+        await guest.locator('#votePalette .vote-card[data-vote="8"]').click();
+
+        await setRuntimeOverrides(guest, {
+            __PP_TEST_MQTT_INBOUND_STALE_MS: 120,
+            __PP_TEST_MQTT_HEALTH_CHECK_MS: 40
+        });
+        await guest.evaluate(async () => {
+            const { ageGuestMqttInboundForTest, runGuestMqttHealthCheckForTest } = await import("/js/guest.js");
+            ageGuestMqttInboundForTest(200);
+            runGuestMqttHealthCheckForTest();
+        });
+
+        await expect.poll(
+            async () => guest.locator("#connectionStatusText").textContent(),
+            { timeout: 20_000 }
+        ).toMatch(/unstable|Reconnecting|Connected to host/i);
+
+        await expect.poll(
+            async () => {
+                const text = await guest.locator("#connectionStatusText").textContent();
+                return /Connected to host/i.test(String(text || ""));
+            },
+            { timeout: 45_000 }
+        ).toBe(true);
+
+        await host.locator("#hostRevealBtn").click();
+        const hostCard = playerCard(host, "HostIdle");
+        const guestCard = playerCard(guest, "GuestIdle");
+        await expect(hostCard).toHaveClass(/revealed/);
+        await expect(guestCard).toHaveClass(/revealed/, { timeout: 15_000 });
+        await expect(guest.locator("#statAverage")).toHaveText("6.50");
+
+        const afterReveal = await guest.evaluate(async () => {
+            const { getGuestSessionDiagnosticsForTest } = await import("/js/guest.js");
+            return getGuestSessionDiagnosticsForTest();
+        });
+        expect(afterReveal.remoteState.revealed).toBe(true);
+        expect(afterReveal.remoteState.round).toBe(1);
     });
-    await setConnectionModeForPages([host, guest], "mqttQuickJoin");
-    await createHost(host, "HostIdle");
-    const guestConnection = await connectGuestToHost(host, guest, "GuestIdle");
-    test.skip(!guestConnection.connected, "MQTT guest channel did not open in this environment.");
-
-    await startGameFromLobby(host);
-    await expect(guest.locator("#tableView.active")).toBeVisible();
-    await host.locator('#votePalette .vote-card[data-vote="5"]').click();
-    await guest.locator('#votePalette .vote-card[data-vote="8"]').click();
-
-    await guest.evaluate(async () => {
-        window.__PP_TEST_MQTT_INBOUND_STALE_MS = 120;
-        window.__PP_TEST_MQTT_HEALTH_CHECK_MS = 40;
-        const { ageGuestMqttInboundForTest, runGuestMqttHealthCheckForTest } = await import("/js/guest.js");
-        ageGuestMqttInboundForTest(200);
-        runGuestMqttHealthCheckForTest();
-    });
-
-    await expect.poll(
-        async () => guest.locator("#connectionStatusText").textContent(),
-        { timeout: 20_000 }
-    ).toMatch(/unstable|Reconnecting|Connected to host/i);
-
-    await expect.poll(
-        async () => {
-            const text = await guest.locator("#connectionStatusText").textContent();
-            return /Connected to host/i.test(String(text || ""));
-        },
-        { timeout: 45_000 }
-    ).toBe(true);
-
-    await host.locator("#hostRevealBtn").click();
-    const hostCard = playerCard(host, "HostIdle");
-    const guestCard = playerCard(guest, "GuestIdle");
-    await expect(hostCard).toHaveClass(/revealed/);
-    await expect(guestCard).toHaveClass(/revealed/, { timeout: 15_000 });
-    await expect(guest.locator("#statAverage")).toHaveText("6.50");
-
-    const afterReveal = await guest.evaluate(async () => {
-        const { getGuestSessionDiagnosticsForTest } = await import("/js/guest.js");
-        return getGuestSessionDiagnosticsForTest();
-    });
-    expect(afterReveal.remoteState.revealed).toBe(true);
-    expect(afterReveal.remoteState.round).toBe(1);
 });

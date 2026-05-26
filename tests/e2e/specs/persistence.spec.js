@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { createHost, openHome, startGameFromLobby } = require("../helpers");
+const { createHost, openHome, setRuntimeOverrides, startGameFromLobby } = require("../helpers");
 
 test("host session snapshot restores table context after refresh", async ({ page }) => {
     await openHome(page);
@@ -89,8 +89,8 @@ test("host restored table notice resolves when known guest rejoins", async ({ pa
 
 test("host restored table notice changes to guidance when guests do not return", async ({ page }) => {
     await openHome(page);
-    await page.addInitScript(() => {
-        window.__PP_TEST_HOST_RESTORE_WAIT_MS = 50;
+    await setRuntimeOverrides(page, {
+        __PP_TEST_HOST_RESTORE_WAIT_MS: 50
     });
     await page.evaluate((snapshot) => {
         window.sessionStorage.setItem("planningPoker.session", JSON.stringify(snapshot));

@@ -3,6 +3,7 @@ import { els, setSignalCodeDisplay, showNotice, updateConnectionStatus } from ".
 import { log } from "./log.js";
 import { getIceServers } from "./ice-config.js";
 import { EMPTY_GUEST_JOIN_CODE_DISPLAY, EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
+import { runRuntimeCleanup } from "./runtime-cleanup.js";
 
 const ICE_GATHERING_TIMEOUT_MS = 10_000;
 const ICE_RESTART_MAX_ATTEMPTS = 2;
@@ -221,18 +222,21 @@ export function closePeerEntry(peerEntry) {
 }
 
 export function shutdownHost(noticeMessage) {
-    if (state.hostRecoveryRelay) {
+    runRuntimeCleanup("host");
+    const hostRecoveryRelay = state.hostRecoveryRelay;
+    state.hostRecoveryRelay = null;
+    if (hostRecoveryRelay) {
         try {
-            state.hostRecoveryRelay.close();
+            hostRecoveryRelay.close();
         } catch (_error) {
             // Ignore close errors.
         }
-        state.hostRecoveryRelay = null;
     }
     const peers = Array.from(state.hostPeers.values());
     for (const peer of peers) {
         closePeerEntry(peer);
     }
+    runRuntimeCleanup("host");
     state.hostPeers.clear();
     state.session = null;
     if (state.role === "host") state.role = "idle";
@@ -259,9 +263,11 @@ export function shutdownHost(noticeMessage) {
 }
 
 export function shutdownGuest(noticeMessage) {
+    runRuntimeCleanup("guest");
     state.guestAutoRejoinEnabled = false;
     state.guestJoinPin = "";
     resetGuestConnection();
+    runRuntimeCleanup("guest");
     state.guestRemoteState = null;
     state.guestJoinCodeRaw = "";
     state.guestResponseApplied = false;

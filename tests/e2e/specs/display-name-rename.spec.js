@@ -4,7 +4,8 @@ const {
     createHost,
     openHome,
     playerCard,
-    startGameFromLobby
+    startGameFromLobby,
+    withSessionPages
 } = require("../helpers");
 
 test("host rejects in-session rename when display name is taken", async ({ page }) => {
@@ -189,30 +190,27 @@ test("host cannot rename to a connected guest display name", async ({ page }) =>
 
 test("guest rename propagates to other players at the table", async ({ browser }) => {
     test.setTimeout(90_000);
-    const context = await browser.newContext();
-    const host = await context.newPage();
-    const guestA = await context.newPage();
-    const guestB = await context.newPage();
+    await withSessionPages(browser, ["host", "guestA", "guestB"], async ({ host, guestA, guestB }) => {
+        await openHome(host);
+        await openHome(guestA);
+        await openHome(guestB);
 
-    await openHome(host);
-    await openHome(guestA);
-    await openHome(guestB);
+        await createHost(host, "HostRename");
+        const connA = await connectGuestToHost(host, guestA, "GuestAlpha");
+        const connB = await connectGuestToHost(host, guestB, "GuestBeta");
+        test.skip(!connA.connected || !connB.connected, "Requires connected WebRTC guests");
 
-    await createHost(host, "HostRename");
-    const connA = await connectGuestToHost(host, guestA, "GuestAlpha");
-    const connB = await connectGuestToHost(host, guestB, "GuestBeta");
-    test.skip(!connA.connected || !connB.connected, "Requires connected WebRTC guests");
+        await startGameFromLobby(host);
+        await expect(guestA.locator("#tableView.active")).toBeVisible();
+        await expect(guestB.locator("#tableView.active")).toBeVisible();
 
-    await startGameFromLobby(host);
-    await expect(guestA.locator("#tableView.active")).toBeVisible();
-    await expect(guestB.locator("#tableView.active")).toBeVisible();
+        await guestA.locator("#displayNameInput").fill("RenamedAlpha");
+        await guestA.locator("#displayNameInput").blur();
 
-    await guestA.locator("#displayNameInput").fill("RenamedAlpha");
-    await guestA.locator("#displayNameInput").blur();
-
-    await expect(playerCard(host, "RenamedAlpha")).toBeVisible({ timeout: 15_000 });
-    await expect(playerCard(guestB, "RenamedAlpha")).toBeVisible({ timeout: 15_000 });
-    await expect(guestA.locator("#displayNameInput")).toHaveValue("RenamedAlpha");
+        await expect(playerCard(host, "RenamedAlpha")).toBeVisible({ timeout: 15_000 });
+        await expect(playerCard(guestB, "RenamedAlpha")).toBeVisible({ timeout: 15_000 });
+        await expect(guestA.locator("#displayNameInput")).toHaveValue("RenamedAlpha");
+    });
 });
 
 test("guest handles nameReject without auto-rejoin", async ({ page }) => {
@@ -268,27 +266,24 @@ test("guest handles nameReject without auto-rejoin", async ({ page }) => {
 
 test("guest rename to taken name is rejected without changing roster name", async ({ browser }) => {
     test.setTimeout(90_000);
-    const context = await browser.newContext();
-    const host = await context.newPage();
-    const guestA = await context.newPage();
-    const guestB = await context.newPage();
+    await withSessionPages(browser, ["host", "guestA", "guestB"], async ({ host, guestA, guestB }) => {
+        await openHome(host);
+        await openHome(guestA);
+        await openHome(guestB);
 
-    await openHome(host);
-    await openHome(guestA);
-    await openHome(guestB);
+        await createHost(host, "HostRenameBlock");
+        const connA = await connectGuestToHost(host, guestA, "GuestAlpha");
+        const connB = await connectGuestToHost(host, guestB, "GuestBeta");
+        test.skip(!connA.connected || !connB.connected, "Requires connected WebRTC guests");
 
-    await createHost(host, "HostRenameBlock");
-    const connA = await connectGuestToHost(host, guestA, "GuestAlpha");
-    const connB = await connectGuestToHost(host, guestB, "GuestBeta");
-    test.skip(!connA.connected || !connB.connected, "Requires connected WebRTC guests");
+        await startGameFromLobby(host);
+        await expect(guestB.locator("#tableView.active")).toBeVisible();
 
-    await startGameFromLobby(host);
-    await expect(guestB.locator("#tableView.active")).toBeVisible();
+        await guestB.locator("#displayNameInput").fill("GuestAlpha");
+        await guestB.locator("#displayNameInput").blur();
 
-    await guestB.locator("#displayNameInput").fill("GuestAlpha");
-    await guestB.locator("#displayNameInput").blur();
-
-    await expect(guestB.locator("#tableNotice")).toContainText(/already in use/i, { timeout: 15_000 });
-    await expect(guestB.locator("#displayNameInput")).toHaveValue("GuestBeta");
-    await expect(playerCard(host, "GuestBeta")).toBeVisible();
+        await expect(guestB.locator("#tableNotice")).toContainText(/already in use/i, { timeout: 15_000 });
+        await expect(guestB.locator("#displayNameInput")).toHaveValue("GuestBeta");
+        await expect(playerCard(host, "GuestBeta")).toBeVisible();
+    });
 });

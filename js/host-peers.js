@@ -20,6 +20,7 @@ import {
     markHostRestoreRelayUnavailable,
     updateHostRestoreStatusNotice
 } from "./host-restore-status.js";
+import { registerRuntimeCleanup } from "./runtime-cleanup.js";
 export { sendJson } from "./messaging.js";
 
 const HOST_RECOVERY_RETRY_BASE_MS = 1000;
@@ -534,6 +535,24 @@ function clearHostRecoveryRetryTimer() {
     clearTimeout(hostRecoveryRetryTimer);
     hostRecoveryRetryTimer = null;
 }
+
+function cleanupHostPeerRuntime() {
+    clearHostRecoveryRetryTimer();
+    hostRecoveryRetryAttempts = 0;
+    lastClosedRecoveryRelay = null;
+}
+
+export function getHostPeerRuntimeDiagnosticsForTest() {
+    return {
+        recoveryRetryTimer: !!hostRecoveryRetryTimer,
+        recoveryRetryAttempts: hostRecoveryRetryAttempts,
+        hasLastClosedRecoveryRelay: !!lastClosedRecoveryRelay,
+        recoveryRelayReadyState: state.hostRecoveryRelay ? state.hostRecoveryRelay.readyState : "none",
+        hostPeerCount: state.hostPeers.size
+    };
+}
+
+registerRuntimeCleanup("host", cleanupHostPeerRuntime);
 
 function scheduleHostRecoveryRelayRetry(reason, immediate = false) {
     if (hostRecoveryRetryTimer) return;

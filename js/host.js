@@ -12,6 +12,7 @@ export {
 export {
     approvePendingRejoin,
     channelTransportType,
+    getHostPeerRuntimeDiagnosticsForTest,
     handleHostInboundMessage,
     onKickGuest,
     onPeerChannelClose,
@@ -24,4 +25,8 @@ export {
     startHostRecoveryRelayListener,
     startHostRelayFallback
 } from "./host-peers.js";
-export { acceptGuestOffer, onAcceptGuestCode } from "./host-signaling.js";
+export {
+    acceptGuestOffer,
+    getHostSignalingRuntimeDiagnosticsForTest,
+    onAcceptGuestCode
+} from "./host-signaling.js";

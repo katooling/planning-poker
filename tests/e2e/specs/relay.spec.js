@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { openHome } = require("../helpers");
+const { openHome, setRuntimeOverrides } = require("../helpers");
 const {
     buildConnack,
     buildSuback,
@@ -125,10 +125,12 @@ test("guest fallback starts after first failed state without waiting for second 
 test("guest relay timeout shows terminal error notice", async ({ page }) => {
     test.setTimeout(35_000);
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_MQTT_BROKER_URLS: ["wss://timeout-broker.example/mqtt"],
+        __PP_TEST_MQTT_CONNECT_TIMEOUT_MS: 25
+    });
     const noticeText = await page.evaluate(async () => {
         const originalWebSocket = window.WebSocket;
-        const originalBrokerUrls = window.__PP_TEST_MQTT_BROKER_URLS;
-        const originalConnectTimeout = window.__PP_TEST_MQTT_CONNECT_TIMEOUT_MS;
         const OPEN = 1;
 
         class TimeoutWebSocket {
@@ -156,8 +158,6 @@ test("guest relay timeout shows terminal error notice", async ({ page }) => {
         }
 
         window.WebSocket = TimeoutWebSocket;
-        window.__PP_TEST_MQTT_BROKER_URLS = ["wss://timeout-broker.example/mqtt"];
-        window.__PP_TEST_MQTT_CONNECT_TIMEOUT_MS = 25;
         try {
             const { state } = await import("/js/state.js");
             const { setupGuestPeerHandlers } = await import("/js/guest.js");
@@ -201,8 +201,6 @@ test("guest relay timeout shows terminal error notice", async ({ page }) => {
             return String(els.guestConnectNotice.textContent || "");
         } finally {
             window.WebSocket = originalWebSocket;
-            window.__PP_TEST_MQTT_BROKER_URLS = originalBrokerUrls;
-            window.__PP_TEST_MQTT_CONNECT_TIMEOUT_MS = originalConnectTimeout;
         }
     });
 
@@ -306,6 +304,12 @@ test("mqtt relay channel works with mocked websocket transport", async ({ page }
 
 test("mqtt relay tries the next configured broker before failing", async ({ page }) => {
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_MQTT_BROKER_URLS: [
+            "wss://first-broker.example/mqtt",
+            { url: "wss://second-broker.example/mqtt", username: "demo" }
+        ]
+    });
 
     const result = await page.evaluate(async ({ fnSources }) => {
         const makeFn = (source) => eval(`(${source})`);
@@ -316,7 +320,6 @@ test("mqtt relay tries the next configured broker before failing", async ({ page
         void encodeRemainingLength;
         void packet;
         const originalWebSocket = window.WebSocket;
-        const originalBrokerUrls = window.__PP_TEST_MQTT_BROKER_URLS;
         const OPEN = 1;
         const createdUrls = [];
         const sentPacketTypes = [];
@@ -384,10 +387,6 @@ test("mqtt relay tries the next configured broker before failing", async ({ page
         }
 
         window.WebSocket = FailoverWebSocket;
-        window.__PP_TEST_MQTT_BROKER_URLS = [
-            "wss://first-broker.example/mqtt",
-            { url: "wss://second-broker.example/mqtt", username: "demo" }
-        ];
 
         try {
             const { createMqttRelayChannel } = await import("/js/mqtt-relay.js");
@@ -419,7 +418,6 @@ test("mqtt relay tries the next configured broker before failing", async ({ page
             };
         } finally {
             window.WebSocket = originalWebSocket;
-            window.__PP_TEST_MQTT_BROKER_URLS = originalBrokerUrls;
         }
     }, { fnSources: mockFunctionSources() });
 
@@ -431,20 +429,22 @@ test("mqtt relay tries the next configured broker before failing", async ({ page
     expect(result.sawSubscribePacket).toBe(true);
     expect(result.secondBrokerConnectFlags & 0x80).toBe(0x80);
     expect(result.secondBrokerConnectPayload).toContain("demo");
-    expect(result.readyState).toBe("open");
+    expect(result.readyState).toBe("closed");
 });
 
 test("mqtt guest inbound stall triggers recovery reconnect", async ({ page }) => {
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_MQTT_INBOUND_STALE_MS: 80,
+        __PP_TEST_MQTT_HEALTH_CHECK_MS: 25,
+        __PP_TEST_REJOIN_MAX_RETRIES: 3
+    });
 
     const result = await page.evaluate(async ({ fnSources }) => {
         const makeFn = (source) => eval(`(${source})`);
         const buildConnack = makeFn(fnSources.buildConnack);
         const buildSuback = makeFn(fnSources.buildSuback);
         const originalWebSocket = window.WebSocket;
-        window.__PP_TEST_MQTT_INBOUND_STALE_MS = 80;
-        window.__PP_TEST_MQTT_HEALTH_CHECK_MS = 25;
-        window.__PP_TEST_REJOIN_MAX_RETRIES = 3;
         window.__PP_MQTT_CONNECT_COUNT = 0;
         const OPEN = 1;
 
@@ -554,9 +554,6 @@ test("mqtt guest inbound stall triggers recovery reconnect", async ({ page }) =>
                 revealApplied: !!(state.guestRemoteState && state.guestRemoteState.revealed)
             };
         } finally {
-            delete window.__PP_TEST_MQTT_INBOUND_STALE_MS;
-            delete window.__PP_TEST_MQTT_HEALTH_CHECK_MS;
-            delete window.__PP_TEST_REJOIN_MAX_RETRIES;
             delete window.__PP_MQTT_CONNECT_COUNT;
             window.WebSocket = originalWebSocket;
         }

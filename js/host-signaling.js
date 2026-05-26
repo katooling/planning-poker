@@ -21,6 +21,9 @@ import {
     setupHostDataChannel,
     startHostRelayFallback
 } from "./host-peers.js";
+import { registerRuntimeCleanup } from "./runtime-cleanup.js";
+
+const hostRelayFallbackTimers = new Set();
 
 export async function onAcceptGuestCode() {
     if (!state.session || state.role !== "host") {
@@ -88,6 +91,7 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
     const clearRelayFallbackTimer = () => {
         if (!relayFallbackTimer) return;
         clearTimeout(relayFallbackTimer);
+        hostRelayFallbackTimers.delete(relayFallbackTimer);
         relayFallbackTimer = null;
     };
     const triggerRelayFallback = (reason) => {
@@ -147,8 +151,11 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
                         "warn"
                     );
                     relayFallbackTimer = setTimeout(() => {
+                        hostRelayFallbackTimers.delete(relayFallbackTimer);
+                        relayFallbackTimer = null;
                         triggerRelayFallback("post-ice-restart-delay");
                     }, RELAY_FALLBACK_DELAY_MS);
+                    hostRelayFallbackTimers.add(relayFallbackTimer);
                 } else {
                     triggerRelayFallback("ice-restart-unavailable");
                 }
@@ -188,3 +195,18 @@ export async function acceptGuestOffer(guestId, guestName, offerDescription) {
         iceGatheringState: peerConnection.iceGatheringState
     });
 }
+
+function cleanupHostSignalingRuntime() {
+    for (const timer of Array.from(hostRelayFallbackTimers)) {
+        clearTimeout(timer);
+    }
+    hostRelayFallbackTimers.clear();
+}
+
+export function getHostSignalingRuntimeDiagnosticsForTest() {
+    return {
+        relayFallbackTimerCount: hostRelayFallbackTimers.size
+    };
+}
+
+registerRuntimeCleanup("host", cleanupHostSignalingRuntime);

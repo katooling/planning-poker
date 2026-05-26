@@ -189,6 +189,7 @@ class SimpleMqttClient {
         this.failureNotified = false;
         this.lastInboundAt = 0;
         this.isClosing = false;
+        this.closeNotified = false;
     }
 
     isInboundStale() {
@@ -206,6 +207,7 @@ class SimpleMqttClient {
     connect() {
         if (this.ws) return;
         this.isClosing = false;
+        this.closeNotified = false;
         if (typeof window !== "undefined") {
             window.__PP_MQTT_CONNECT_COUNT = (window.__PP_MQTT_CONNECT_COUNT || 0) + 1;
         }
@@ -219,16 +221,26 @@ class SimpleMqttClient {
         const ws = new WebSocket(brokerUrl);
         ws.binaryType = "arraybuffer";
         ws.onopen = () => {
+            if (this.isClosing) {
+                try {
+                    ws.close();
+                } catch (_error) {
+                    // Ignore close errors while shutting down.
+                }
+                return;
+            }
             log.info("mqtt", "MQTT websocket open", { clientId: this.clientId });
             this.sendRaw(buildConnectPacket(this.clientId, broker));
         };
         ws.onmessage = (event) => {
+            if (this.isClosing) return;
             this.lastInboundAt = Date.now();
             const bytes = new Uint8Array(event.data);
             this.buffer = concatBytes([this.buffer, bytes]);
             this.processFrames();
         };
         ws.onerror = () => {
+            if (this.isClosing) return;
             log.warn("mqtt", "MQTT socket error", { clientId: this.clientId, subscribeTopic: this.subscribeTopic, brokerUrl });
             if (!this.isSubscribed) {
                 this.failCurrentBroker("socket_error", { brokerUrl });
@@ -240,7 +252,7 @@ class SimpleMqttClient {
             this.clearConnectTimer();
             if (this.isClosing) {
                 this.teardown();
-                if (typeof this.onClose === "function") this.onClose();
+                this.notifyClose();
                 return;
             }
             if (!this.isSubscribed) {
@@ -248,21 +260,31 @@ class SimpleMqttClient {
                 return;
             }
             this.teardown();
-            if (typeof this.onClose === "function") this.onClose();
+            this.notifyClose();
         };
         this.ws = ws;
         this.startConnectTimer();
     }
 
     close() {
+        if (this.isClosing && this.closeNotified) return;
         this.isClosing = true;
         this.clearConnectTimer();
-        if (!this.ws) return;
+        const ws = this.ws;
+        if (!ws) {
+            this.teardown();
+            this.notifyClose();
+            return;
+        }
         try {
-            this.ws.close();
+            if (ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+                ws.close();
+            }
         } catch (_error) {
             // Ignore socket close failures.
         }
+        this.teardown();
+        this.notifyClose();
     }
 
     send(topic, textPayload) {
@@ -330,7 +352,7 @@ class SimpleMqttClient {
         this.notifyFailure(reason, { ...detail, brokerUrl: failedBrokerUrl });
         this.isClosing = true;
         this.teardown();
-        if (typeof this.onClose === "function") this.onClose();
+        this.notifyClose();
     }
 
     processFrames() {
@@ -365,6 +387,7 @@ class SimpleMqttClient {
         }
 
         if (packetType === 9) {
+            if (this.isClosing) return;
             this.isSubscribed = true;
             this.lastInboundAt = Date.now();
             this.clearConnectTimer();
@@ -430,6 +453,12 @@ class SimpleMqttClient {
         }
     }
 
+    notifyClose() {
+        if (this.closeNotified) return;
+        this.closeNotified = true;
+        if (typeof this.onClose === "function") this.onClose();
+    }
+
     teardown() {
         this.stopPingLoop();
         this.clearConnectTimer();
@@ -471,6 +500,7 @@ export function createMqttRelayChannel(role, roomId, localId, callbacks = {}) {
         onclose: null,
         onmessage: null,
         close() {
+            channel.readyState = "closed";
             mqttClient.close();
         },
         syncReadyState() {

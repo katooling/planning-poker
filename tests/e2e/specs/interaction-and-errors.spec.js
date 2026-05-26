@@ -1,5 +1,12 @@
 const { test, expect } = require("@playwright/test");
-const { createHost, openHome, readCode, setConnectionMode, setConnectionModeForPages } = require("../helpers");
+const {
+    createHost,
+    openHome,
+    readCode,
+    setConnectionMode,
+    setConnectionModeForPages,
+    withSessionPages
+} = require("../helpers");
 
 test("escape exits guest connect view back to home", async ({ page }) => {
     await openHome(page);
@@ -66,32 +73,29 @@ test("guest rejects malformed host response code", async ({ page }) => {
 });
 
 test("guest rejects response code intended for a different guest", async ({ browser }) => {
-    const context = await browser.newContext();
-    const host = await context.newPage();
-    const guestA = await context.newPage();
-    const guestB = await context.newPage();
+    await withSessionPages(browser, ["host", "guestA", "guestB"], async ({ host, guestA, guestB }) => {
+        await openHome(host);
+        await openHome(guestA);
+        await openHome(guestB);
+        await setConnectionModeForPages([host, guestA, guestB], "manualWebRtc");
+        await createHost(host, "HostWrongTarget");
 
-    await openHome(host);
-    await openHome(guestA);
-    await openHome(guestB);
-    await setConnectionModeForPages([host, guestA, guestB], "manualWebRtc");
-    await createHost(host, "HostWrongTarget");
+        await guestA.locator("#displayNameInput").fill("GuestA");
+        await guestA.locator("#joinRoomBtn").click();
+        await expect(guestA.locator("#copyGuestJoinCodeBtn")).toBeEnabled();
+        const guestAJoinCode = await readCode(guestA.locator("#guestJoinCode"));
 
-    await guestA.locator("#displayNameInput").fill("GuestA");
-    await guestA.locator("#joinRoomBtn").click();
-    await expect(guestA.locator("#copyGuestJoinCodeBtn")).toBeEnabled();
-    const guestAJoinCode = await readCode(guestA.locator("#guestJoinCode"));
+        await host.locator("#hostIncomingJoinCode").fill(guestAJoinCode);
+        await host.locator("#acceptGuestBtn").click();
+        await expect(host.locator("#copyHostResponseCodeBtn")).toBeEnabled();
+        const guestAResponseCode = await readCode(host.locator("#hostResponseCode"));
 
-    await host.locator("#hostIncomingJoinCode").fill(guestAJoinCode);
-    await host.locator("#acceptGuestBtn").click();
-    await expect(host.locator("#copyHostResponseCodeBtn")).toBeEnabled();
-    const guestAResponseCode = await readCode(host.locator("#hostResponseCode"));
+        await guestB.locator("#displayNameInput").fill("GuestB");
+        await guestB.locator("#joinRoomBtn").click();
+        await expect(guestB.locator("#copyGuestJoinCodeBtn")).toBeEnabled();
+        await guestB.locator("#guestResponseCodeInput").fill(guestAResponseCode);
+        await guestB.locator("#connectGuestBtn").click();
 
-    await guestB.locator("#displayNameInput").fill("GuestB");
-    await guestB.locator("#joinRoomBtn").click();
-    await expect(guestB.locator("#copyGuestJoinCodeBtn")).toBeEnabled();
-    await guestB.locator("#guestResponseCodeInput").fill(guestAResponseCode);
-    await guestB.locator("#connectGuestBtn").click();
-
-    await expect(guestB.locator("#guestConnectNotice")).toContainText("different guest");
+        await expect(guestB.locator("#guestConnectNotice")).toContainText("different guest");
+    });
 });

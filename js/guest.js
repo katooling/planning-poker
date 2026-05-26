@@ -29,6 +29,7 @@ import {
     persistDisplayName,
     sanitizeDisplayName
 } from "./display-name.js";
+import { registerRuntimeCleanup } from "./runtime-cleanup.js";
 
 const RELAY_FALLBACK_DELAY_MS = 2500;
 const REJOIN_ACK_TIMEOUT_MS = 4500;
@@ -37,6 +38,7 @@ const PRESENCE_PING_INTERVAL_MS = 12_000;
 const QUICK_JOIN_RETRY_MAX = 2;
 const QUICK_JOIN_RETRY_DELAY_MS = 1200;
 const GUEST_MQTT_HEALTH_CHECK_MS = 12_000;
+const GUEST_LEAVE_FLUSH_TIMEOUT_MS = 75;
 
 let guestRejoinTimer = null;
 let guestDisconnectedRecoveryTimer = null;
@@ -50,6 +52,9 @@ let guestJoinRetryAttempts = 0;
 let guestAutoRejoinAttemptId = 0;
 let guestQuickJoinAttemptId = 0;
 let guestAcceptedDisplayName = "";
+let guestJoinLinkEnterTimer = null;
+const guestRejoinAckTimers = new Set();
+const guestRelayFallbackTimers = new Set();
 
 export function getGuestRejoinAttempts() {
     return guestRejoinAttempts;
@@ -95,6 +100,28 @@ function clearGuestDisconnectedRecoveryTimer() {
     if (!guestDisconnectedRecoveryTimer) return;
     clearTimeout(guestDisconnectedRecoveryTimer);
     guestDisconnectedRecoveryTimer = null;
+}
+
+function trackTimeout(timerSet, callback, delayMs) {
+    const timer = setTimeout(() => {
+        timerSet.delete(timer);
+        callback();
+    }, delayMs);
+    timerSet.add(timer);
+    return timer;
+}
+
+function clearTrackedTimeoutSet(timerSet) {
+    for (const timer of Array.from(timerSet)) {
+        clearTimeout(timer);
+    }
+    timerSet.clear();
+}
+
+function clearGuestJoinLinkEnterTimer() {
+    if (!guestJoinLinkEnterTimer) return;
+    clearTimeout(guestJoinLinkEnterTimer);
+    guestJoinLinkEnterTimer = null;
 }
 
 function scheduleGuestDisconnectedRecovery(pc, channel) {
@@ -356,6 +383,7 @@ export function setupGuestPeerHandlers(pc, dc) {
     const clearRelayFallbackTimer = () => {
         if (!relayFallbackTimer) return;
         clearTimeout(relayFallbackTimer);
+        guestRelayFallbackTimers.delete(relayFallbackTimer);
         relayFallbackTimer = null;
     };
     const triggerRelayFallback = (reason) => {
@@ -430,7 +458,8 @@ export function setupGuestPeerHandlers(pc, dc) {
                 restartTriggered = attemptIceRestart(pc, { role: "guest" });
                 if (restartTriggered) {
                     showNotice(els.guestConnectNotice, "Direct path failed. Starting relay fallback shortly...", "warn");
-                    relayFallbackTimer = setTimeout(() => {
+                    relayFallbackTimer = trackTimeout(guestRelayFallbackTimers, () => {
+                        relayFallbackTimer = null;
                         triggerRelayFallback("post-ice-restart-delay");
                     }, RELAY_FALLBACK_DELAY_MS);
                 } else {
@@ -481,12 +510,19 @@ function enterGuestTable(channel) {
 export function onHostChannelOpen(channel) {
     if (state.guestChannel !== channel) return;
     if (isJoinLinkContext()) {
+        const attemptId = guestQuickJoinAttemptId;
         routeGuestJoinFeedback({
             message: "You're in!",
             type: "info",
             phase: "entering"
         });
-        setTimeout(() => enterGuestTable(channel), 500);
+        clearGuestJoinLinkEnterTimer();
+        guestJoinLinkEnterTimer = setTimeout(() => {
+            guestJoinLinkEnterTimer = null;
+            if (attemptId !== guestQuickJoinAttemptId) return;
+            if (state.guestChannel !== channel) return;
+            enterGuestTable(channel);
+        }, 500);
         return;
     }
     showNotice(els.guestConnectNotice, "Connected. Entering table...", "info");
@@ -520,10 +556,46 @@ export function onHostChannelMessage(rawData, channel) {
     handleGuestInboundMessage(rawData, channel);
 }
 
-export function notifyGuestLeaving() {
-    if (state.role !== "guest") return;
-    if (!state.guestChannel || state.guestChannel.readyState !== "open") return;
-    sendJson(state.guestChannel, { t: "leave" });
+function waitForGuestLeaveFlush(channel, timeoutMs) {
+    if (!channel || timeoutMs <= 0) return Promise.resolve();
+    if (typeof channel.bufferedAmount !== "number") {
+        return new Promise((resolve) => setTimeout(resolve, timeoutMs));
+    }
+    if (channel.bufferedAmount <= 0) {
+        return new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    return new Promise((resolve) => {
+        let settled = false;
+        let timer = null;
+        const finish = () => {
+            if (settled) return;
+            settled = true;
+            if (timer) clearTimeout(timer);
+            if (typeof channel.removeEventListener === "function") {
+                channel.removeEventListener("bufferedamountlow", finish);
+            }
+            resolve();
+        };
+        timer = setTimeout(finish, timeoutMs);
+        if (typeof channel.addEventListener !== "function") return;
+        try {
+            channel.bufferedAmountLowThreshold = 0;
+            channel.addEventListener("bufferedamountlow", finish, { once: true });
+        } catch (_error) {
+            finish();
+        }
+    });
+}
+
+export async function notifyGuestLeaving(options = {}) {
+    if (state.role !== "guest") return false;
+    if (!state.guestChannel || state.guestChannel.readyState !== "open") return false;
+    const channel = state.guestChannel;
+    sendJson(channel, { t: "leave" });
+    if (options.waitForFlush) {
+        await waitForGuestLeaveFlush(channel, options.timeoutMs || GUEST_LEAVE_FLUSH_TIMEOUT_MS);
+    }
+    return true;
 }
 
 export async function connectGuestByRoomCode(roomCode, pin = "", options = {}) {
@@ -670,6 +742,8 @@ function resetGuestRejoinState() {
     settleGuestRejoinState();
     guestAutoRejoinAttemptId += 1;
     guestQuickJoinAttemptId += 1;
+    clearGuestJoinLinkEnterTimer();
+    clearTrackedTimeoutSet(guestRejoinAckTimers);
 }
 
 function settleGuestRejoinState() {
@@ -841,7 +915,8 @@ async function attemptGuestAutoRejoin(reason) {
                 n: state.displayName,
                 pin: state.guestJoinPin || ""
             });
-            setTimeout(() => {
+            trackTimeout(guestRejoinAckTimers, () => {
+                if (attemptId !== guestAutoRejoinAttemptId) return;
                 if (state.guestChannel !== channel) return;
                 if (!guestAwaitingRejoinAck) return;
                 try {
@@ -920,7 +995,8 @@ async function attemptGuestDirectRelayJoin(reason) {
             if (isJoinLinkContext()) {
                 notifyWaitingForHostApproval();
             }
-            setTimeout(() => {
+            trackTimeout(guestRejoinAckTimers, () => {
+                if (attemptId !== guestQuickJoinAttemptId) return;
                 if (state.guestChannel !== channel) return;
                 if (!guestAwaitingRejoinAck) return;
                 if (state.guestJoinPin) {
@@ -1229,5 +1305,42 @@ function syncGuestDisplayNameFromRoster() {
     }
     persistDisplayName(name);
 }
+
+function cleanupGuestRuntime() {
+    resetGuestRejoinState();
+    stopGuestPresenceLoop();
+    stopGuestMqttHealthLoop();
+    clearGuestDisconnectedRecoveryTimer();
+    clearGuestJoinRetryTimer();
+    clearGuestJoinLinkEnterTimer();
+    clearTrackedTimeoutSet(guestRejoinAckTimers);
+    clearTrackedTimeoutSet(guestRelayFallbackTimers);
+    guestMqttRecoveryInFlight = false;
+    guestRejoinAttempts = 0;
+    guestJoinRetryAttempts = 0;
+    guestAwaitingRejoinAck = false;
+    guestAcceptedDisplayName = "";
+}
+
+export function getGuestRuntimeDiagnosticsForTest() {
+    return {
+        rejoinTimer: !!guestRejoinTimer,
+        disconnectedRecoveryTimer: !!guestDisconnectedRecoveryTimer,
+        mqttHealthTimer: !!guestMqttHealthTimer,
+        presenceTimer: !!guestPresenceTimer,
+        joinRetryTimer: !!guestJoinRetryTimer,
+        joinLinkEnterTimer: !!guestJoinLinkEnterTimer,
+        rejoinAckTimerCount: guestRejoinAckTimers.size,
+        relayFallbackTimerCount: guestRelayFallbackTimers.size,
+        mqttRecoveryInFlight: guestMqttRecoveryInFlight,
+        rejoinAttempts: guestRejoinAttempts,
+        joinRetryAttempts: guestJoinRetryAttempts,
+        awaitingRejoinAck: guestAwaitingRejoinAck,
+        autoRejoinAttemptId: guestAutoRejoinAttemptId,
+        quickJoinAttemptId: guestQuickJoinAttemptId
+    };
+}
+
+registerRuntimeCleanup("guest", cleanupGuestRuntime);
 
 export { sendJson } from "./messaging.js";

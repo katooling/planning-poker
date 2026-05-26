@@ -1,14 +1,16 @@
 const { test, expect } = require("@playwright/test");
-const { openHome } = require("../helpers");
+const { openHome, setRuntimeOverrides } = require("../helpers");
 
 test("guest webrtc disconnected state triggers channel recovery", async ({ page }) => {
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_GUEST_DISCONNECTED_RECOVERY_MS: 30,
+        __PP_TEST_REJOIN_MAX_RETRIES: 2
+    });
 
     const result = await page.evaluate(async () => {
         const originalWebSocket = window.WebSocket;
         const originalSetTimeout = window.setTimeout;
-        window.__PP_TEST_GUEST_DISCONNECTED_RECOVERY_MS = 30;
-        window.__PP_TEST_REJOIN_MAX_RETRIES = 2;
         const OPEN = 1;
         window.setTimeout = (handler, timeout, ...args) => {
             const clamped = Math.min(Number(timeout || 0), 15);
@@ -96,8 +98,6 @@ test("guest webrtc disconnected state triggers channel recovery", async ({ page 
                 rejoining: String(els.connectionStatusText.textContent || "").includes("Reconnecting")
             };
         } finally {
-            delete window.__PP_TEST_GUEST_DISCONNECTED_RECOVERY_MS;
-            delete window.__PP_TEST_REJOIN_MAX_RETRIES;
             window.WebSocket = originalWebSocket;
             window.setTimeout = originalSetTimeout;
         }
@@ -264,10 +264,12 @@ test("host auto-approves known guest rejoin without queueing pending request", a
 
 test("host recovery relay listener reconnects after relay close", async ({ page }) => {
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_HOST_RECOVERY_RETRY_MS: 10
+    });
 
     const result = await page.evaluate(async () => {
         const originalWebSocket = window.WebSocket;
-        window.__PP_TEST_HOST_RECOVERY_RETRY_MS = 10;
         const OPEN = 1;
         let websocketCreates = 0;
         let forcedCloseDone = false;
@@ -345,7 +347,6 @@ test("host recovery relay listener reconnects after relay close", async ({ page 
             await new Promise((resolve) => setTimeout(resolve, 220));
             return { websocketCreates };
         } finally {
-            delete window.__PP_TEST_HOST_RECOVERY_RETRY_MS;
             window.WebSocket = originalWebSocket;
         }
     });
@@ -355,11 +356,13 @@ test("host recovery relay listener reconnects after relay close", async ({ page 
 
 test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", async ({ page }) => {
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_REJOIN_MAX_RETRIES: 2
+    });
 
     const result = await page.evaluate(async () => {
         const originalWebSocket = window.WebSocket;
         const originalSetTimeout = window.setTimeout;
-        window.__PP_TEST_REJOIN_MAX_RETRIES = 2;
         const OPEN = 1;
         window.setTimeout = (handler, timeout, ...args) => {
             const clamped = Math.min(Number(timeout || 0), 10);
@@ -437,7 +440,6 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
                 status: String(els.connectionStatusText.textContent || "")
             };
         } finally {
-            delete window.__PP_TEST_REJOIN_MAX_RETRIES;
             window.WebSocket = originalWebSocket;
             window.setTimeout = originalSetTimeout;
         }
@@ -451,13 +453,14 @@ test("guest auto-rejoin close-path exhaustion shows terminal reconnect notice", 
 
 test("guest quick-join close while awaiting approval shows actionable retry state", async ({ page }) => {
     await openHome(page);
+    await setRuntimeOverrides(page, {
+        __PP_TEST_QUICK_JOIN_RETRY_MAX: 0,
+        __PP_TEST_MQTT_BROKER_URLS: ["wss://quick-close.example/mqtt"]
+    });
 
     const result = await page.evaluate(async () => {
         const originalWebSocket = window.WebSocket;
         const originalSetTimeout = window.setTimeout;
-        const originalBrokerUrls = window.__PP_TEST_MQTT_BROKER_URLS;
-        window.__PP_TEST_QUICK_JOIN_RETRY_MAX = 0;
-        window.__PP_TEST_MQTT_BROKER_URLS = ["wss://quick-close.example/mqtt"];
         const OPEN = 1;
         window.setTimeout = (handler, timeout, ...args) => {
             const clamped = Math.min(Number(timeout || 0), 12);
@@ -518,8 +521,6 @@ test("guest quick-join close while awaiting approval shows actionable retry stat
                 status: String(els.connectionStatusText.textContent || "")
             };
         } finally {
-            delete window.__PP_TEST_QUICK_JOIN_RETRY_MAX;
-            window.__PP_TEST_MQTT_BROKER_URLS = originalBrokerUrls;
             window.WebSocket = originalWebSocket;
             window.setTimeout = originalSetTimeout;
         }

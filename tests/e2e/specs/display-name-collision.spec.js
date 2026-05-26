@@ -3,7 +3,8 @@ const {
     createHost,
     openHome,
     setConnectionMode,
-    setConnectionPreferences
+    setConnectionPreferences,
+    withSessionPages
 } = require("../helpers");
 const { connectGuestToHost } = require("../helpers/guest");
 
@@ -247,40 +248,37 @@ test("guest invite link stays on form after display name collision reject", asyn
 });
 
 test("invite link blocks second browser using taken display name", async ({ browser }) => {
-    const context = await browser.newContext();
-    const host = await context.newPage();
-    const guestA = await context.newPage();
-    const guestB = await context.newPage();
+    await withSessionPages(browser, ["host", "guestA", "guestB"], async ({ host, guestA, guestB }) => {
+        await openHome(host);
+        await setConnectionPreferences(host, {
+            mode: "mqttQuickJoin",
+            hostRequireApprovalFirstJoin: false,
+            hostAutoApproveKnownRejoin: true
+        });
+        await openHome(guestA);
+        await openHome(guestB);
+        await setConnectionMode(guestA, "mqttQuickJoin");
+        await setConnectionMode(guestB, "mqttQuickJoin");
+        await createHost(host, "HostCollision");
+        const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
 
-    await openHome(host);
-    await setConnectionPreferences(host, {
-        mode: "mqttQuickJoin",
-        hostRequireApprovalFirstJoin: false,
-        hostAutoApproveKnownRejoin: true
+        const firstJoin = await connectGuestToHost(host, guestA, "Alex");
+        expect(firstJoin.connected).toBe(true);
+
+        await guestB.goto("/?room=" + encodeURIComponent(roomCode));
+        await guestB.locator("#displayNameInput").fill("Alex");
+        await guestB.locator("#joinRoomBtn").click();
+
+        await expect(guestB.locator("#joinLinkNotice")).toContainText(/already in use/i, { timeout: 12_000 });
+        await expect(guestB.locator("#joinLinkStatusPhase")).toBeHidden();
+        await expect(guestB.locator("#displayNameInput")).toBeEnabled();
+        await expect(host.locator("#hostPlayerList .player-row", { hasText: "Alex" })).toHaveCount(1);
+
+        await guestB.locator("#displayNameInput").fill("Alex (2)");
+        await guestB.locator("#joinRoomBtn").click();
+        await expect(guestB.locator("#joinLinkStatusPhase")).toBeVisible({ timeout: 12_000 });
+        await expect.poll(async () => {
+            return guestB.locator("#tableView.active").isVisible().catch(() => false);
+        }, { timeout: 15_000 }).toBe(true);
     });
-    await openHome(guestA);
-    await openHome(guestB);
-    await setConnectionMode(guestA, "mqttQuickJoin");
-    await setConnectionMode(guestB, "mqttQuickJoin");
-    await createHost(host, "HostCollision");
-    const roomCode = String(await host.locator("#hostRoomCode").textContent() || "").trim();
-
-    const firstJoin = await connectGuestToHost(host, guestA, "Alex");
-    expect(firstJoin.connected).toBe(true);
-
-    await guestB.goto("/?room=" + encodeURIComponent(roomCode));
-    await guestB.locator("#displayNameInput").fill("Alex");
-    await guestB.locator("#joinRoomBtn").click();
-
-    await expect(guestB.locator("#joinLinkNotice")).toContainText(/already in use/i, { timeout: 12_000 });
-    await expect(guestB.locator("#joinLinkStatusPhase")).toBeHidden();
-    await expect(guestB.locator("#displayNameInput")).toBeEnabled();
-    await expect(host.locator("#hostPlayerList .player-row", { hasText: "Alex" })).toHaveCount(1);
-
-    await guestB.locator("#displayNameInput").fill("Alex (2)");
-    await guestB.locator("#joinRoomBtn").click();
-    await expect(guestB.locator("#joinLinkStatusPhase")).toBeVisible({ timeout: 12_000 });
-    await expect.poll(async () => {
-        return guestB.locator("#tableView.active").isVisible().catch(() => false);
-    }, { timeout: 15_000 }).toBe(true);
 });

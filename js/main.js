@@ -47,6 +47,8 @@ import {
     onHostRevealVotes,
     onHostStartGame,
     approvePendingRejoin,
+    getHostPeerRuntimeDiagnosticsForTest,
+    getHostSignalingRuntimeDiagnosticsForTest,
     rejectPendingRejoin,
     startHostRecoveryRelayListener,
     startHostSession
@@ -55,6 +57,7 @@ import { canGuestSendToHost } from "./guest-connection-status.js";
 import {
     onGuestConnectWithResponseCode,
     connectGuestByRoomCode,
+    getGuestRuntimeDiagnosticsForTest,
     notifyGuestLeaving,
     onRegenerateGuestOffer,
     sendJson as guestSendJson,
@@ -68,7 +71,12 @@ import { clearSessionSnapshot, loadSessionSnapshot, saveSessionSnapshot } from "
 import { EMPTY_GUEST_JOIN_CODE_DISPLAY, EMPTY_HOST_RESPONSE_CODE_DISPLAY } from "./signal-display-presets.js";
 import { sanitizeText } from "./sanitize.js";
 import { DISPLAY_NAME_TAKEN_REASON } from "./display-name-collision.js";
-import { beginHostRestoreStatus, clearHostRestoreStatus } from "./host-restore-status.js";
+import {
+    beginHostRestoreStatus,
+    clearHostRestoreStatus,
+    getHostRestoreRuntimeDiagnosticsForTest
+} from "./host-restore-status.js";
+import { getRuntimeCleanupDiagnosticsForTest } from "./runtime-cleanup.js";
 import {
     getAuthoritativeDisplayName,
     isInDisplayNameSession,
@@ -127,10 +135,39 @@ function init() {
         showView("home");
     }
     window.planningPokerLog = log;
+    installTestHooks();
     log.info("init", "Application initialized", {
         restoredName: state.displayName || null,
         restoredSession: restored ? state.role : null
     });
+}
+
+function installTestHooks() {
+    if (!window.__PP_TEST_MODE) return;
+    window.__planningPokerTest = {
+        async shutdownAll(options = {}) {
+            if (state.role === "guest") {
+                await notifyGuestLeaving({ waitForFlush: true });
+            }
+            shutdownGuest();
+            shutdownHost();
+            if (options && options.clearSnapshot) {
+                clearSessionSnapshot();
+            }
+        },
+        diagnostics() {
+            return {
+                role: state.role,
+                currentView: state.currentView,
+                roomId: state.roomId,
+                guest: getGuestRuntimeDiagnosticsForTest(),
+                hostPeers: getHostPeerRuntimeDiagnosticsForTest(),
+                hostSignaling: getHostSignalingRuntimeDiagnosticsForTest(),
+                hostRestore: getHostRestoreRuntimeDiagnosticsForTest(),
+                runtimeCleanup: getRuntimeCleanupDiagnosticsForTest()
+            };
+        }
+    };
 }
 
 function wireEvents() {
@@ -514,7 +551,7 @@ function onJoinRoom() {
     startGuestSession(name);
 }
 
-function onLeaveOrBack() {
+async function onLeaveOrBack() {
     if (state.role === "host") {
         if (state.currentView === "table") {
             showView("hostLobby");
@@ -548,7 +585,7 @@ function onLeaveOrBack() {
     }
 
     state.guestAutoRejoinEnabled = false;
-    notifyGuestLeaving();
+    await notifyGuestLeaving({ waitForFlush: true });
     shutdownGuest("Disconnected.");
     clearSessionSnapshot();
     showView("home");

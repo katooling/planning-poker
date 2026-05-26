@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { createHost, openHome } = require("../helpers");
+const { createHost, openHome, withSessionPages } = require("../helpers");
 
 test("create/join requires a display name", async ({ page }) => {
     await openHome(page);
@@ -14,22 +14,20 @@ test("create/join requires a display name", async ({ page }) => {
 });
 
 test("host and guest back actions return to home", async ({ browser }) => {
-    const context = await browser.newContext();
-    const host = await context.newPage();
-    const guest = await context.newPage();
+    await withSessionPages(browser, ["host", "guest"], async ({ host, guest }) => {
+        await openHome(host);
+        await openHome(guest);
 
-    await openHome(host);
-    await openHome(guest);
+        await createHost(host, "HostBack");
+        await host.locator("#hostBackHomeBtn").click();
+        await expect(host.locator("#homeView.active")).toBeVisible();
 
-    await createHost(host, "HostBack");
-    await host.locator("#hostBackHomeBtn").click();
-    await expect(host.locator("#homeView.active")).toBeVisible();
-
-    await guest.locator("#displayNameInput").fill("GuestBack");
-    await guest.getByTestId("btn-join-room").click();
-    await expect(guest.locator("#guestConnectView.active")).toBeVisible();
-    await guest.getByTestId("btn-guest-back-home").click();
-    await expect(guest.locator("#homeView.active")).toBeVisible();
+        await guest.locator("#displayNameInput").fill("GuestBack");
+        await guest.getByTestId("btn-join-room").click();
+        await expect(guest.locator("#guestConnectView.active")).toBeVisible();
+        await guest.getByTestId("btn-guest-back-home").click();
+        await expect(guest.locator("#homeView.active")).toBeVisible();
+    });
 });
 
 test("guest reconnect path from disconnected table returns to join flow", async ({ page }) => {

@@ -1,5 +1,12 @@
 const { test, expect } = require("@playwright/test");
-const { createHost, openHome, readCode, setConnectionMode, setConnectionModeForPages } = require("../helpers");
+const {
+    createHost,
+    openHome,
+    readCode,
+    setConnectionMode,
+    setConnectionModeForPages,
+    withSessionPages
+} = require("../helpers");
 
 function normalizeWhitespace(value) {
     return String(value || "").replace(/\s+/g, "");
@@ -34,78 +41,77 @@ test("guest regenerate creates a fresh join code and resets step state", async (
 });
 
 test("guest copy plain and formatted buttons copy expected values", async ({ browser }) => {
-    const context = await browser.newContext();
-    await context.addInitScript(() => {
-        window.__copiedTexts = [];
-        Object.defineProperty(navigator, "clipboard", {
-            configurable: true,
-            value: {
-                writeText: async (text) => {
-                    window.__copiedTexts.push(String(text));
-                }
-            }
+    await withSessionPages(browser, ["page"], async ({ page }) => {
+        await openHome(page);
+        await setConnectionMode(page, "manualWebRtc");
+        await page.locator("#displayNameInput").fill("GuestCopy");
+        await page.getByTestId("btn-join-room").click();
+        await expect(page.locator("#copyGuestJoinCodeBtn")).toBeEnabled();
+
+        await page.getByTestId("btn-copy-guest-join-plain").click();
+        await page.getByTestId("btn-copy-guest-join-formatted").click();
+
+        const copied = await page.evaluate(() => window.__copiedTexts || []);
+        expect(copied.length).toBeGreaterThanOrEqual(2);
+
+        const rawCode = await page.evaluate(async () => {
+            const { state } = await import("/js/state.js");
+            return state.guestJoinCodeRaw;
         });
+        expect(copied[0]).toBe(rawCode);
+        expect(normalizeWhitespace(copied[1])).toBe(normalizeWhitespace(rawCode));
+    }, {
+        initScript: () => {
+            window.__copiedTexts = [];
+            Object.defineProperty(navigator, "clipboard", {
+                configurable: true,
+                value: {
+                    writeText: async (text) => {
+                        window.__copiedTexts.push(String(text));
+                    }
+                }
+            });
+        }
     });
-    const page = await context.newPage();
-
-    await openHome(page);
-    await setConnectionMode(page, "manualWebRtc");
-    await page.locator("#displayNameInput").fill("GuestCopy");
-    await page.getByTestId("btn-join-room").click();
-    await expect(page.locator("#copyGuestJoinCodeBtn")).toBeEnabled();
-
-    await page.getByTestId("btn-copy-guest-join-plain").click();
-    await page.getByTestId("btn-copy-guest-join-formatted").click();
-
-    const copied = await page.evaluate(() => window.__copiedTexts || []);
-    expect(copied.length).toBeGreaterThanOrEqual(2);
-
-    const rawCode = await page.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        return state.guestJoinCodeRaw;
-    });
-    expect(copied[0]).toBe(rawCode);
-    expect(normalizeWhitespace(copied[1])).toBe(normalizeWhitespace(rawCode));
 });
 
 test("host copy plain and formatted response buttons copy expected values", async ({ browser }) => {
-    const context = await browser.newContext();
-    await context.addInitScript(() => {
-        window.__copiedTexts = [];
-        Object.defineProperty(navigator, "clipboard", {
-            configurable: true,
-            value: {
-                writeText: async (text) => {
-                    window.__copiedTexts.push(String(text));
-                }
-            }
+    await withSessionPages(browser, ["host", "guest"], async ({ host, guest }) => {
+        await openHome(host);
+        await openHome(guest);
+        await setConnectionModeForPages([host, guest], "manualWebRtc");
+        await createHost(host, "HostCopy");
+        await guest.locator("#displayNameInput").fill("GuestCopyHost");
+        await guest.getByTestId("btn-join-room").click();
+        const joinCode = await readCode(guest.locator("#guestJoinCode"));
+
+        await host.getByTestId("input-host-join-code").fill(joinCode);
+        await host.getByTestId("btn-accept-guest").click();
+        await expect(host.getByTestId("btn-copy-host-response-plain")).toBeEnabled();
+
+        await host.getByTestId("btn-copy-host-response-plain").click();
+        await host.getByTestId("btn-copy-host-response-formatted").click();
+
+        const copied = await host.evaluate(() => window.__copiedTexts || []);
+        expect(copied.length).toBeGreaterThanOrEqual(2);
+
+        const rawCode = await host.evaluate(async () => {
+            const { state } = await import("/js/state.js");
+            return state.hostResponseCodeRaw;
         });
+        expect(copied[0]).toBe(rawCode);
+        expect(normalizeWhitespace(copied[1])).toBe(normalizeWhitespace(rawCode));
+    }, {
+        initScript: () => {
+            window.__copiedTexts = [];
+            Object.defineProperty(navigator, "clipboard", {
+                configurable: true,
+                value: {
+                    writeText: async (text) => {
+                        window.__copiedTexts.push(String(text));
+                    }
+                }
+            });
+        }
     });
-    const host = await context.newPage();
-    const guest = await context.newPage();
-
-    await openHome(host);
-    await openHome(guest);
-    await setConnectionModeForPages([host, guest], "manualWebRtc");
-    await createHost(host, "HostCopy");
-    await guest.locator("#displayNameInput").fill("GuestCopyHost");
-    await guest.getByTestId("btn-join-room").click();
-    const joinCode = await readCode(guest.locator("#guestJoinCode"));
-
-    await host.getByTestId("input-host-join-code").fill(joinCode);
-    await host.getByTestId("btn-accept-guest").click();
-    await expect(host.getByTestId("btn-copy-host-response-plain")).toBeEnabled();
-
-    await host.getByTestId("btn-copy-host-response-plain").click();
-    await host.getByTestId("btn-copy-host-response-formatted").click();
-
-    const copied = await host.evaluate(() => window.__copiedTexts || []);
-    expect(copied.length).toBeGreaterThanOrEqual(2);
-
-    const rawCode = await host.evaluate(async () => {
-        const { state } = await import("/js/state.js");
-        return state.hostResponseCodeRaw;
-    });
-    expect(copied[0]).toBe(rawCode);
-    expect(normalizeWhitespace(copied[1])).toBe(normalizeWhitespace(rawCode));
 });

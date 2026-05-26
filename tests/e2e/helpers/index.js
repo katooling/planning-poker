@@ -16,6 +16,11 @@ const {
     requestMqttGuestJoin,
     expectHostPendingGuest
 } = require("./mqtt");
+const {
+    withSessionPages,
+    setRuntimeOverrides,
+    getRuntimeDiagnostics
+} = require("./session");
 
 module.exports = {
     openHome,
@@ -35,5 +40,8 @@ module.exports = {
     waitForHostRecoveryRelayOpen,
     isHostRecoveryRelayOpen,
     requestMqttGuestJoin,
-    expectHostPendingGuest
+    expectHostPendingGuest,
+    withSessionPages,
+    setRuntimeOverrides,
+    getRuntimeDiagnostics
 };
