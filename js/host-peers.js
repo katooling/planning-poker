@@ -300,6 +300,7 @@ export function handleHostInboundMessage(guestId, rawData) {
             peer.name = nextName;
             changed = true;
         }
+        const player = state.session.players[guestId];
         const wasConnected = !!(player && player.connected);
         const previousName = player ? player.name : null;
         upsertHostPlayer(guestId, nextName, true, sanitizeHostName);
@@ -394,7 +395,13 @@ function queuePendingRejoin(guestId, guestName) {
                 .slice(-PENDING_REJOIN_MAX);
         }
     }
-    if (state.currentView === "table") {
+    if (state.currentView === "hostLobby") {
+        showNotice(
+            els.hostLobbyNotice,
+            "Rejoin request from " + guestName + ". Approve or reject.",
+            "info"
+        );
+    } else if (state.currentView === "table") {
         showNotice(
             els.tableNotice,
             "Rejoin request from " + guestName + ". Return to lobby to review.",
