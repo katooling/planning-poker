@@ -77,6 +77,7 @@ import {
     getHostRestoreRuntimeDiagnosticsForTest
 } from "./host-restore-status.js";
 import { getRuntimeCleanupDiagnosticsForTest } from "./runtime-cleanup.js";
+import { setupThemeToggle } from "./theme.js";
 import {
     getAuthoritativeDisplayName,
     isInDisplayNameSession,
@@ -94,6 +95,7 @@ function init() {
     state.hostAutoApproveKnownRejoin = connectionSettings.hostAutoApproveKnownRejoin;
     state.displayName = loadPersistedDisplayName();
     els.displayNameInput.value = state.displayName;
+    setupThemeToggle(els.themeToggleBtn);
     configureHost({ sanitizeName });
     setTableViewHandler(renderTable);
     setVoteSelectHandler((vote) => {

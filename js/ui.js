@@ -94,6 +94,7 @@ export const els = {
     guestReconnectRetryBtn: document.getElementById("guestReconnectRetryBtn"),
     guestReconnectFallbackBtn: document.getElementById("guestReconnectFallbackBtn"),
     hostStartGameHint: document.getElementById("hostStartGameHint"),
+    themeToggleBtn: document.getElementById("themeToggleBtn"),
     iceSettingsBtn: document.getElementById("iceSettingsBtn"),
     iceSettingsDialog: document.getElementById("iceSettingsDialog"),
     defaultIceServersList: document.getElementById("defaultIceServersList"),

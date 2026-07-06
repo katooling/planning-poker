@@ -78,3 +78,27 @@ test("display name is sanitized and restored after reload", async ({ page }) => 
     expect(restored).toBe("Alice Bob Carol With");
     expect(restored.length).toBeLessThanOrEqual(40);
 });
+
+test("theme toggle switches between light and dark and persists after reload", async ({ page }) => {
+    await openHome(page);
+
+    const toggle = page.getByTestId("btn-theme-toggle");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    await toggle.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(toggle).toHaveText("Light Theme");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(21, 21, 21)");
+    await expect.poll(() => page.evaluate(() => localStorage.getItem("planning-poker-theme"))).toBe("dark");
+
+    await page.reload();
+    await expect(page.locator("#homeView.active")).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+    await toggle.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+});

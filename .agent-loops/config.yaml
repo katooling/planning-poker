@@ -1,0 +1,41 @@
+# Autonomous Work Loops config.
+host: github
+
+proof:
+  test: "npm test"
+  build: ""
+  lint: ""
+
+trusted_actors: ["Mohamad-Kamar"]
+trust_posture: strict # permissive | strict
+# In strict mode, only issues authored by trusted_actors are executable.
+# Bootstrap should fill the authenticated gh login when it is the maintainer/operator.
+# External requests need a trusted maintainer to create a dispatch issue.
+
+labels:
+  ready: ready
+  in_progress: in-progress
+  needs_fix: needs-fix
+  ready_for_human: ready-for-human
+  unproven: unproven
+  did_not_converge: did-not-converge
+  stalled: stalled
+
+reviewer_model: "" # Empty means same model; set an override for cross-model review.
+branch_prefix: loop/impl/issue-
+
+budgets:
+  max_active_implementers: 1
+  max_active_reviewers: 1
+  max_active_fixers: 1
+  max_reviewer_fixer_cycles_per_change: 2
+  max_runtime_minutes_per_loop: 30
+  max_changed_files_without_human_review: 20
+  kill_retries: 2
+  require_human_approval_for_budget_increase: true
+
+# v2 evolution.enabled: false
+# v2 evidence.threshold: 3
+# v2 maintainer.enabled: false
+# v2 maintainer.schedule: ""
+# v2 maintainer.core_memory_path: ".agent-loops/core-memory.md"

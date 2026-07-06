@@ -4,6 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Planning Poker</title>
+    <script>
+        (() => {
+            try {
+                const theme = localStorage.getItem("planning-poker-theme");
+                if (theme === "dark" || theme === "light") {
+                    document.documentElement.dataset.theme = theme;
+                }
+            } catch (_error) {
+                // Keep the default light theme when storage is unavailable.
+            }
+        })();
+    </script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -18,6 +30,7 @@
                     <label class="field-label" for="displayNameInput">Display name</label>
                     <input id="displayNameInput" data-testid="input-display-name" type="text" maxlength="40" placeholder="Your name" aria-label="Display name">
                 </div>
+                <button id="themeToggleBtn" data-testid="btn-theme-toggle" class="btn btn-secondary btn-icon" type="button" aria-pressed="false">Dark Theme</button>
                 <button id="iceSettingsBtn" class="btn btn-secondary btn-icon" title="Connection settings">Connection Settings</button>
             </div>
         </div>
