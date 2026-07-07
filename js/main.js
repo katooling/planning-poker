@@ -84,10 +84,12 @@ import {
     persistDisplayName,
     sanitizeDisplayName
 } from "./display-name.js";
+import { applyTheme, loadPreferredTheme, toggleTheme } from "./theme.js";
 
 init();
 
 function init() {
+    applyTheme(loadPreferredTheme(), { toggleButton: els.themeToggleBtn });
     const connectionSettings = loadConnectionSettings();
     state.connectionStrategy = connectionSettings.strategy;
     state.hostRequireApprovalFirstJoin = connectionSettings.hostRequireApprovalFirstJoin;
@@ -394,6 +396,11 @@ function showDisplayNameNotice(text, type, timeoutMs) {
 }
 
 function wireSettingsEvents() {
+    if (els.themeToggleBtn) {
+        els.themeToggleBtn.addEventListener("click", () => {
+            toggleTheme({ toggleButton: els.themeToggleBtn });
+        });
+    }
     if (els.iceSettingsBtn) {
         els.iceSettingsBtn.addEventListener("click", openIceSettingsDialog);
     }

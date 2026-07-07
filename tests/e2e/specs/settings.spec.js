@@ -36,3 +36,25 @@ test("connection settings persist strategy and MQTT admission toggles", async ({
     await expect(page.locator("#hostAutoApproveKnownRejoinCheckbox")).not.toBeChecked();
     await page.locator("#iceSettingsCancelBtn").click();
 });
+
+test("theme toggle switches dark mode and persists after reload", async ({ page }) => {
+    await openHome(page);
+
+    const themeToggle = page.getByTestId("btn-theme-toggle");
+    await expect(themeToggle).toHaveText("Dark Theme");
+    await expect(themeToggle).toHaveAttribute("aria-pressed", "false");
+
+    await themeToggle.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(themeToggle).toHaveText("Light Theme");
+    await expect(themeToggle).toHaveAttribute("aria-pressed", "true");
+
+    await page.reload();
+    await expect(page.locator("#homeView.active")).toBeVisible();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(themeToggle).toHaveText("Light Theme");
+
+    await themeToggle.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(themeToggle).toHaveText("Dark Theme");
+});
