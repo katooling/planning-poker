@@ -77,6 +77,7 @@ import {
     getHostRestoreRuntimeDiagnosticsForTest
 } from "./host-restore-status.js";
 import { getRuntimeCleanupDiagnosticsForTest } from "./runtime-cleanup.js";
+import { applyTheme, loadTheme, saveTheme, syncThemeToggle } from "./theme.js";
 import {
     getAuthoritativeDisplayName,
     isInDisplayNameSession,
@@ -88,6 +89,7 @@ import {
 init();
 
 function init() {
+    const theme = applyTheme(loadTheme());
     const connectionSettings = loadConnectionSettings();
     state.connectionStrategy = connectionSettings.strategy;
     state.hostRequireApprovalFirstJoin = connectionSettings.hostRequireApprovalFirstJoin;
@@ -102,6 +104,7 @@ function init() {
 
     renderVotePalette();
     renderConnectionStrategySections();
+    syncThemeToggle(els.themeToggle, els.themeToggleLabel, theme);
     wireEvents();
 
     els.copyGuestJoinCodeBtn.disabled = true;
@@ -394,6 +397,13 @@ function showDisplayNameNotice(text, type, timeoutMs) {
 }
 
 function wireSettingsEvents() {
+    if (els.themeToggle) {
+        els.themeToggle.addEventListener("change", () => {
+            const theme = applyTheme(els.themeToggle.checked ? "dark" : "light");
+            saveTheme(theme);
+            syncThemeToggle(els.themeToggle, els.themeToggleLabel, theme);
+        });
+    }
     if (els.iceSettingsBtn) {
         els.iceSettingsBtn.addEventListener("click", openIceSettingsDialog);
     }
