@@ -885,7 +885,7 @@ textarea.code-box {
     background: var(--surface-danger);
     border-color: var(--surface-danger-hover);
     border-left-color: #b42318;
-    color: #7f1d1d;
+    color: var(--text-danger-strong);
 }
 
 .reconnect-banner[hidden] {
