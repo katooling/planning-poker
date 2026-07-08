@@ -8,6 +8,8 @@ export const els = {
         guestConnect: document.getElementById("guestConnectView"),
         table: document.getElementById("tableView")
     },
+    themeToggle: document.getElementById("themeToggle"),
+    themeToggleLabel: document.getElementById("themeToggleLabel"),
     displayNameInput: document.getElementById("displayNameInput"),
     createRoomBtn: document.getElementById("createRoomBtn"),
     joinRoomBtn: document.getElementById("joinRoomBtn"),

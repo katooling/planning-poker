@@ -14,6 +14,13 @@
                 <div class="subtle">Zero-server planning poker with MQTT quick join</div>
             </div>
             <div class="row title-bar-actions">
+                <label class="theme-toggle" for="themeToggle" title="Toggle light or dark theme">
+                    <span id="themeToggleLabel" class="theme-toggle-label">Light</span>
+                    <input id="themeToggle" data-testid="toggle-theme" type="checkbox" role="switch" aria-label="Use dark theme">
+                    <span class="theme-toggle-track" aria-hidden="true">
+                        <span class="theme-toggle-thumb"></span>
+                    </span>
+                </label>
                 <div class="title-bar-name-field">
                     <label class="field-label" for="displayNameInput">Display name</label>
                     <input id="displayNameInput" data-testid="input-display-name" type="text" maxlength="40" placeholder="Your name" aria-label="Display name">
