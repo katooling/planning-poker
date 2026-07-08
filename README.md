@@ -92,6 +92,12 @@ Run E2E tests:
 npm run test:e2e
 ```
 
+Run the fast unit smoke proof:
+
+```bash
+npm run test:unit
+```
+
 Useful variants:
 
 ```bash
