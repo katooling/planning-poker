@@ -37,6 +37,34 @@ describe("theme preferences", () => {
         assert.equal(loadTheme(storage, media), "dark");
     });
 
+    it("falls back when browser storage is blocked during property access", () => {
+        const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, "window");
+        Object.defineProperty(globalThis, "window", {
+            configurable: true,
+            get() {
+                return {
+                    get localStorage() {
+                        throw new Error("storage blocked");
+                    },
+                    matchMedia() {
+                        return { matches: true };
+                    }
+                };
+            }
+        });
+
+        try {
+            assert.equal(loadTheme(), "dark");
+            assert.equal(saveTheme("dark"), "dark");
+        } finally {
+            if (originalWindowDescriptor) {
+                Object.defineProperty(globalThis, "window", originalWindowDescriptor);
+            } else {
+                delete globalThis.window;
+            }
+        }
+    });
+
     it("applies only supported theme names to the document element", () => {
         const doc = {
             documentElement: {

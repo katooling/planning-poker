@@ -2,7 +2,7 @@ const THEME_STORAGE_KEY = "planning-poker-theme";
 const LIGHT_THEME = "light";
 const DARK_THEME = "dark";
 
-export function loadTheme(storage = window.localStorage, media = window.matchMedia) {
+export function loadTheme(storage = getLocalStorage(), media = getMatchMedia()) {
     const savedTheme = readSavedTheme(storage);
     if (savedTheme) return savedTheme;
 
@@ -19,7 +19,7 @@ export function applyTheme(theme, doc = document) {
     return normalizedTheme;
 }
 
-export function saveTheme(theme, storage = window.localStorage) {
+export function saveTheme(theme, storage = getLocalStorage()) {
     const normalizedTheme = normalizeTheme(theme);
     try {
         storage.setItem(THEME_STORAGE_KEY, normalizedTheme);
@@ -48,6 +48,22 @@ function readSavedTheme(storage) {
         const theme = storage.getItem(THEME_STORAGE_KEY);
         if (theme !== LIGHT_THEME && theme !== DARK_THEME) return null;
         return theme;
+    } catch {
+        return null;
+    }
+}
+
+function getLocalStorage() {
+    try {
+        return globalThis.window?.localStorage ?? null;
+    } catch {
+        return null;
+    }
+}
+
+function getMatchMedia() {
+    try {
+        return globalThis.window?.matchMedia ?? null;
     } catch {
         return null;
     }
