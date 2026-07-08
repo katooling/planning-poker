@@ -9,6 +9,7 @@ export const els = {
         table: document.getElementById("tableView")
     },
     displayNameInput: document.getElementById("displayNameInput"),
+    themeToggleBtn: document.getElementById("themeToggleBtn"),
     createRoomBtn: document.getElementById("createRoomBtn"),
     joinRoomBtn: document.getElementById("joinRoomBtn"),
     homeDefaultHeading: document.getElementById("homeDefaultHeading"),

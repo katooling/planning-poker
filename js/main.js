@@ -84,6 +84,12 @@ import {
     persistDisplayName,
     sanitizeDisplayName
 } from "./display-name.js";
+import {
+    applyTheme,
+    getNextTheme,
+    loadThemePreference,
+    saveThemePreference
+} from "./theme.js";
 
 init();
 
@@ -92,6 +98,7 @@ function init() {
     state.connectionStrategy = connectionSettings.strategy;
     state.hostRequireApprovalFirstJoin = connectionSettings.hostRequireApprovalFirstJoin;
     state.hostAutoApproveKnownRejoin = connectionSettings.hostAutoApproveKnownRejoin;
+    updateThemeToggle(applyTheme(loadThemePreference()));
     state.displayName = loadPersistedDisplayName();
     els.displayNameInput.value = state.displayName;
     configureHost({ sanitizeName });
@@ -317,6 +324,12 @@ function createVoteDeps() {
 }
 
 function wireProfileAndLifecycleEvents() {
+    if (els.themeToggleBtn) {
+        els.themeToggleBtn.addEventListener("click", () => {
+            const nextTheme = getNextTheme(document.documentElement.dataset.theme);
+            updateThemeToggle(applyTheme(saveThemePreference(nextTheme)));
+        });
+    }
     els.displayNameInput.addEventListener("input", () => {
         if (isInDisplayNameSession(state)) return;
         state.displayName = sanitizeName(els.displayNameInput.value);
@@ -327,6 +340,15 @@ function wireProfileAndLifecycleEvents() {
         commitDisplayNameChange();
     });
     window.addEventListener("pagehide", onPageHide);
+}
+
+function updateThemeToggle(theme) {
+    if (!els.themeToggleBtn) return;
+    const nextTheme = getNextTheme(theme);
+    const label = nextTheme === "dark" ? "Dark Theme" : "Light Theme";
+    els.themeToggleBtn.textContent = label;
+    els.themeToggleBtn.setAttribute("aria-label", "Switch to " + label.toLowerCase());
+    els.themeToggleBtn.setAttribute("aria-pressed", theme === "dark" ? "true" : "false");
 }
 
 function commitDisplayNameChange() {

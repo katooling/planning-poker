@@ -78,3 +78,22 @@ test("display name is sanitized and restored after reload", async ({ page }) => 
     expect(restored).toBe("Alice Bob Carol With");
     expect(restored.length).toBeLessThanOrEqual(40);
 });
+
+test("theme toggle switches theme and persists after reload", async ({ page }) => {
+    await openHome(page);
+
+    const toggle = page.getByTestId("btn-theme-toggle");
+    await expect(toggle).toHaveText("Dark Theme");
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+    await toggle.click();
+    await expect(toggle).toHaveText("Light Theme");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+    await page.reload();
+    await expect(toggle).toHaveText("Light Theme");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
